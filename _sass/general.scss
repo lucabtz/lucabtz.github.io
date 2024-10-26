@@ -1,0 +1,101 @@
+$bg-color: #fdfdfd;
+$text-color: #333;
+
+@mixin max-size {
+    width: 100%;
+    max-width: 1000px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-size: 18px;
+    font-family: "IBM Plex Mono", monospace;
+    background-color: $bg-color;
+    color: $text-color;
+    line-height: 25px;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.headbar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 10px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    @include max-size();
+}
+
+.nav-links {
+    display: flex;
+    flex-direction: row;
+}
+
+.nav-links > li {
+    list-style-type: none;
+    margin-right: 15px;
+}
+
+.sitename > h1 {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.profile-pic {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    margin-left: 30px;
+    float: right;
+}
+
+@media (max-width: 600px) {
+    .profile-pic {
+        display: none;
+    }
+}
+
+main {
+    padding: 10px;
+    text-align: justify;
+    @include max-size();
+}
+
+a, a:visited {
+    color: rgb(87, 87, 233);
+}
+
+footer {
+    font-size: 14px;
+    padding: 15px;
+}
+
+main > p {
+    margin-bottom: 10px;
+}
+
+main > ul {
+    margin-left: 30px;
+}
+
+main > h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    margin-top: 15px;
+}
+
+main > h2 {
+    font-size: 21px;
+    margin-bottom: 10px;
+    margin-top: 15px;
+}

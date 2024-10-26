@@ -1,0 +1,101 @@
+$paragraph-spacing: 10px;
+$header-top-spacing: 25px;
+$author-date-color: #666;
+
+@mixin margin-top-bottom($m) {
+    margin-top: $m;
+    margin-bottom: $m;
+}
+
+@mixin p-space {
+    @include margin-top-bottom($paragraph-spacing)
+}
+
+@mixin h-space {
+    margin-top: $header-top-spacing;
+    margin-bottom: $paragraph-spacing;
+}
+
+.post-tags {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.post-tags > ul {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.post-tags > ul > li {
+    list-style-type: none;
+    margin-left: 10px;
+    border: 1px solid black;
+    padding: 3px;
+    @include margin-top-bottom(3px);
+}
+
+.post-title {
+    font-size: 29px;
+    text-align: left;
+}
+
+.post-author {
+    margin-top: 5px;
+    color: $author-date-color;
+}
+
+.post-date {
+    color: $author-date-color;
+}
+
+.post-tags > div {
+    color: $author-date-color;
+}
+
+code.highlighter-rouge {
+    background-color: #f8f8f8;
+    border: 1px solid #ccc;
+    padding: 1px;
+}
+
+pre.highlight {
+    overflow-x: auto;
+}
+
+article > p {
+    @include p-space();
+}
+
+article > ul {
+    margin-left: 30px;
+    @include p-space();
+}
+
+article > h1 {
+    font-size: 24px;
+    @include h-space();
+}
+
+article > h2 {
+    font-size: 21px;
+    @include h-space();
+}
+
+.post-nav {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+.post-nav > div {
+    border: 1px solid black;
+    padding: 10px;
+    width: 45%;
+    text-align: center;
+}

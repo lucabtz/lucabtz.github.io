@@ -35,13 +35,33 @@
         <h1 class="post-title">(An Attempt at) Pwning a Chip8 Emulator</h1>
         <div class="post-author">Author: Luca Bertozzi</div>
         <div class="post-date">Oct 24, 2024</div>
-        <div class="post-tags">
-            <div>Tags</div>
-            <ul>
-                
-                <li>binary-exploitation</li>
-                
-            </ul>
+        <div class="post-bar">
+            <div class="post-tags">
+                <div>Tags</div>
+                <ul>
+                    
+                    <li>binary-exploitation</li>
+                    
+                    <li>more</li>
+                    
+                    <li>test</li>
+                    
+                    <li>tags</li>
+                    
+                </ul>
+            </div>
+            <div class="post-share">
+                <ul>
+                    <li>
+                        <a href="https://twitter.com/share?ref_src=twsrc%5Etfw" class="twitter-share-button"
+                            data-show-count="false"></a>
+                    </li>
+                    <li>
+                        <script src="https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+                        <script type="IN/Share" data-url="/blog/attempt-at-pwning-a-chip8-emulator"></script>
+                    </li>
+                </ul>
+            </div>
         </div>
     </header>
     <p>Recently I was browsing the projects section on the Discord server of the <a href="https://discord.gg/c-asm">C-ASM Community</a>
@@ -130,7 +150,7 @@ instruction)</p>
 buffer overflow for simplicity, but it should be possible to control it also using the fact that the incrementation of the stack 
 pointer is not checked (so invoking <code class="language-plaintext highlighter-rouge">call</code> the right number of times we can overflow the VM stack and write other memory, this
 is in fact when I realized the second bug).
-Now that I kew I could overwrite global memory after <code class="language-plaintext highlighter-rouge">init_SDL</code> is called I started checking what <code class="language-plaintext highlighter-rouge">SDL_Renderer</code> looks like:</p>
+Now that I knew I could overwrite global memory after <code class="language-plaintext highlighter-rouge">init_SDL</code> is called I started checking what <code class="language-plaintext highlighter-rouge">SDL_Renderer</code> looks like:</p>
 <div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">SDL_Renderer</span>
 <span class="p">{</span>
     <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">WindowEvent</span><span class="p">)(</span><span class="n">SDL_Renderer</span> <span class="o">*</span><span class="n">renderer</span><span class="p">,</span> <span class="k">const</span> <span class="n">SDL_WindowEvent</span> <span class="o">*</span><span class="n">event</span><span class="p">);</span>
@@ -496,7 +516,8 @@ the Chip8 code to interact with these primitives I need to put the fake music ob
 
 <p>The address we must now write to the global <code class="language-plaintext highlighter-rouge">sound</code> variable is <code class="language-plaintext highlighter-rouge">0x406020</code>. Unfortunately, this seems impossible to me as I would
 have to write the value <code class="language-plaintext highlighter-rouge">0x6020</code> which would correspond to making execution start at a PC of <code class="language-plaintext highlighter-rouge">0x1e</code> and I do not control what 
-instructions are there at the beggining of the execution.</p>
+instructions are there at the beggining of the execution (well to be fair <code class="language-plaintext highlighter-rouge">0x406020</code> is chosen a bit randomly in the VM’s 
+memory, there may be some address which can be written and is also in the VM’s memory, but at this point I started being lazy).</p>
 
 <p>What I can however do is place the <code class="language-plaintext highlighter-rouge">interface</code> in the Chip8’s memory while having the fake music object places at the already said
 address: <code class="language-plaintext highlighter-rouge">0x406a5e</code>.</p>
@@ -767,15 +788,17 @@ by sending a DM on <a href="https://x.com/lucabtz_">X</a>, thanks for reading!</
 <div class="post-nav">
     <div>
         
-            Hey this is the first post!
+        Hey this is the first post!
         
     </div>
     <div>
         
-            No more recent posts, sorry!
+        No more recent posts, sorry!
         
     </div>
 </div>
+
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
             </main>
         
             <footer>

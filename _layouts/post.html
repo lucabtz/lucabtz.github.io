@@ -7,13 +7,27 @@ layout: default
         <h1 class="post-title">{{ page.title }}</h1>
         <div class="post-author">Author: {{ page.author }}</div>
         <div class="post-date">{{ page.date | date: "%b %-d, %Y" }}</div>
-        <div class="post-tags">
-            <div>Tags</div>
-            <ul>
-                {% for tag in page.tags %}
-                <li>{{ tag }}</li>
-                {% endfor %}
-            </ul>
+        <div class="post-bar">
+            <div class="post-tags">
+                <div>Tags</div>
+                <ul>
+                    {% for tag in page.tags %}
+                    <li>{{ tag }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="post-share">
+                <ul>
+                    <li>
+                        <a href="https://twitter.com/share?ref_src=twsrc%5Etfw" class="twitter-share-button"
+                            data-show-count="false"></a>
+                    </li>
+                    <li>
+                        <script src="https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+                        <script type="IN/Share" data-url="{{ page.url }}"></script>
+                    </li>
+                </ul>
+            </div>
         </div>
     </header>
     {{ content }}
@@ -26,7 +40,7 @@ layout: default
             Previous post: {{ page.previous.title }}
         </a>
         {% else %}
-            Hey this is the first post!
+        Hey this is the first post!
         {% endif %}
     </div>
     <div>
@@ -35,7 +49,9 @@ layout: default
             Next post: {{ page.next.title }}
         </a>
         {% else %}
-            No more recent posts, sorry!
+        No more recent posts, sorry!
         {% endif %}
     </div>
 </div>
+
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>

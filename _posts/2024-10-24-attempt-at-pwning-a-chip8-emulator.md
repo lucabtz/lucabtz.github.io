@@ -1,7 +1,7 @@
 ---
 title: (An Attempt at) Pwning a Chip8 Emulator
 author: Luca Bertozzi
-tags: binary-exploitation
+tags: binary-exploitation more test tags
 ---
 
 Recently I was browsing the projects section on the Discord server of the [C-ASM Community](https://discord.gg/c-asm)

@@ -41,19 +41,40 @@
             </div>
             <nav>
                 <ul class="nav-links">
-                    <li><a href="/" >Home</a></li>
-                    <li><a href="/blog" class="active-page" >Blog</a></li>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/blog">Blog</a></li>
                 </ul>
             </nav>
         </div>
 
         <main>
-            <h1 id="all-blog-posts">All Blog Posts</h1>
+            <div class="title-bar">
+    <div>
+        <h1>Blog</h1>
+    </div>
+    <div class="feed-button">
+        <img class="rss-icon" src="/assets/images/rss.png" alt="RSS feed">
+        <a href="/feed.xml">Feed</a>
+    </div>
+</div>
 
 <ul>
-  <li><a href="/blog/attempt-at-pwning-a-chip8-emulator">(An Attempt at) Pwning a Chip8 Emulator</a></li>
+    
+    <li class="post-card">
+        <div><a href="/blog/attempt-at-pwning-a-chip8-emulator">(An Attempt at) Pwning a Chip8 Emulator</a></div>
+        <div class="post-author">Author: Luca Bertozzi</div>
+        <div class="post-date">Oct 24, 2024</div>
+        <div class="post-tags">
+            <div>Tags</div>
+            <ul>
+                
+                <li>binary-exploitation</li>
+                
+            </ul>
+        </div>
+    </li>
+    
 </ul>
-
         </main>
 
         <footer>

@@ -2,15 +2,14 @@
 layout: default
 ---
 
-<h1>{{ page.title }}</h1>
-
-<img src="assets/images/pic.jpg" class="profile-pic" alt="A photo of me and my wife" />
+<div class="title-bar">
+    <div>
+        <h1>{{ page.title }}</h1>
+    </div>
+    <div class="feed-button">
+        <img class="rss-icon" src="/assets/images/rss.png" alt="RSS feed">
+        <a href="/feed.xml">Feed</a>
+    </div>
+</div>
 
 {{ content }}
-
-<h2>Latest Blog Posts</h2>
-<ul>
-    {% for post in site.posts limit: 3 %}
-    <li><a href="{{ post.url }}" class="post-preview">{{ post.title }}</a></li>
-    {% endfor %}
-</ul>

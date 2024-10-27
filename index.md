@@ -6,6 +6,8 @@ layout: home
 title: Home
 ---
 
+<img src="/assets/images/pic.jpg" class="profile-pic" alt="A photo of me and my wife" />
+
 Hello my name is Luca Bertozzi, I have a master degree in Theoretical Physics, but I have always been passionate about
 computers and have been coding since a long time now: thus I am now switching and going into cybersecurity.
 
@@ -17,3 +19,11 @@ You can also contact me on the following platforms:
 - [X](https://x.com/lucabtz_)
 - Discord handle: lucabtz
 - [lucabertozzi.pub@gmail.com](mailto:lucabertozzi.pub@gmail.com)
+
+
+<h2>Latest Blog Posts</h2>
+<ul>
+    {% for post in site.posts limit: 3 %}
+    <li><a href="{{ post.url }}">{{ post.title }}</a></li>
+    {% endfor %}
+</ul>

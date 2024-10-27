@@ -96,7 +96,7 @@ we can write the value of `chip.pc` to an arbitrary offset from `chip.stack`. We
 buffer overflow for simplicity, but it should be possible to control it also using the fact that the incrementation of the stack 
 pointer is not checked (so invoking `call` the right number of times we can overflow the VM stack and write other memory, this
 is in fact when I realized the second bug).
-Now that I kew I could overwrite global memory after `init_SDL` is called I started checking what `SDL_Renderer` looks like:
+Now that I knew I could overwrite global memory after `init_SDL` is called I started checking what `SDL_Renderer` looks like:
 ```c
 struct SDL_Renderer
 {
@@ -482,7 +482,8 @@ I decided to only use the call to `Play` as we can trigger it multiple times any
 
 The address we must now write to the global `sound` variable is `0x406020`. Unfortunately, this seems impossible to me as I would
 have to write the value `0x6020` which would correspond to making execution start at a PC of `0x1e` and I do not control what 
-instructions are there at the beggining of the execution.
+instructions are there at the beggining of the execution (well to be fair `0x406020` is chosen a bit randomly in the VM's 
+memory, there may be some address which can be written and is also in the VM's memory, but at this point I started being lazy).
 
 What I can however do is place the `interface` in the Chip8's memory while having the fake music object places at the already said
 address: `0x406a5e`.

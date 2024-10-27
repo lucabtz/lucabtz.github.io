@@ -1,7 +1,7 @@
 ---
 title: (An Attempt at) Pwning a Chip8 Emulator
-author: Luca Bertozzi
-tags: binary-exploitation more test tags
+description: I try to exploit multiple vulnerabilities in a student's project as if it was a CTF
+tags: binary-exploitation
 ---
 
 Recently I was browsing the projects section on the Discord server of the [C-ASM Community](https://discord.gg/c-asm)
@@ -48,7 +48,7 @@ and the increment of the stack pointer for the call instruction
 do not check if the stack will under/over-flow respectively. This can also be used to corrupt memory beyond the limits of the
 `chip.stack` array! The question is now: can this be exploited? Can we make a malicious ROM capable of running arbitrary code?
 
-# Exploitation Attempt
+## Exploitation Attempt
 
 For a start let's try using a position *dependent* executable by modifying the `makefile`
 ```makefile
@@ -113,7 +113,7 @@ point the plan was using the above primitive to make the global `renderer` point
 I would place a forged `SDL_Renderer` structure.
 
 
-## Writing arbitrary values using the write primitive
+### Writing arbitrary values using the write primitive
 Let me focus on how exactly the overwriting of the `renderer` pointer works. The objective here is overwriting it with
 the value `0x406a5e` which points somewhere after the global variables in an area I control via the overflow. Notice that the 
 primitive allows to write 16 bits integers and we need to use it twice to first write the value `0x6a5e` in the low bits and then
@@ -187,7 +187,7 @@ Again `0x3e` is what we want to write minus 2. Notice that the stack pointer is 
 writing in the right memory location. Now what will be executed next depends on what we put at address `0x222`, but we will discuss this later.
 
 
-# Arbitrary call primitive
+### Arbitrary call primitive
 Now that we control the `renderer` pointer we should be able to use its vtable to get an arbitrary call primitive pretty easily, 
 right?
 Well, unfortunately the `SDL2` pointers are validated against a global hash table and unless we control also that hash table, the 
@@ -488,7 +488,7 @@ memory, there may be some address which can be written and is also in the VM's m
 What I can however do is place the `interface` in the Chip8's memory while having the fake music object places at the already said
 address: `0x406a5e`.
 
-# Controlling `call`s from the Chip8 assembly
+### Controlling `call`s from the Chip8 assembly
 
 Now I am in a position in which I can control `call` instructions (the x64 `call`, not the chip8's) from the chip8's assembly,
 by simplying writing where I want to call at a specific memory location and then triggering the sound. Before at address `0x222`
@@ -503,7 +503,7 @@ zsh: segmentation fault  ./Chip8 exploit
 
 ```
 
-# Arbitrary file read using `load_ROM`
+### Arbitrary file read using `load_ROM`
 
 There is one interesting function to call and it is `load_ROM`! This just read any file into the Chip8's memory starting at
 address `0x200`. I thought I can just read `/proc/self/maps` and kill ASLR. Unfortunately, I'd like to find the `libc` base
@@ -513,7 +513,7 @@ turns out I can't really read files under `/proc` as the `size` local variable i
 Overall this is an interesting primitive, but not being able to read `/proc` files leaves me confused on how to use this to defeat
 ASLR (which is what keeping me from calling `system` and getting arbitrary code execution).
 
-# Conclusion
+## Conclusion
 
 Unfortunately I was not able to turn this into arbitrary code execution: my limited knowledge and the fact that the imported 
 functions by the binary are so few make the exploitation not straightforward. However I would argue there are loads of 

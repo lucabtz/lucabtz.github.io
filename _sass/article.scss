@@ -107,12 +107,12 @@ article > ul {
     @include p-space();
 }
 
-article > h1 {
+article > h2 {
     font-size: 24px;
     @include h-space();
 }
 
-article > h2 {
+article > h3 {
     font-size: 21px;
     @include h-space();
 }

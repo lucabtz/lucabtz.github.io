@@ -4,8 +4,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(An Attempt at) Pwning a Chip8 Emulator - Luca's Blog</title>
 
+    
+    <meta name="description" content="I try to exploit multiple vulnerabilities in a student's project as if it was a CTF">
+    <meta property="og:description" content="I try to exploit multiple vulnerabilities in a student's project as if it was a CTF" />
+    
+
+    <meta property="og:title" content="(An Attempt at) Pwning a Chip8 Emulator" />
+    
+    <meta property="og:type" content="article" />
+    
+    <meta property="og:url" content="/blog/attempt-at-pwning-a-chip8-emulator" />
+    <meta property="og:image" content="http://localhost:4000/images/pic.jpg">
+    <meta property="og:site_name" content="Luca's Blog">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <meta name="twitter:site" content="\@lucabtz_">
+
+
+    <title>(An Attempt at) Pwning a Chip8 Emulator - Luca's Blog</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,20 +34,20 @@
 
 <body>
     <div class="container">
-            <div class="headbar">
-                <div class="sitename">
-                    <h1>Luca's Blog</h1>
-                </div>
-                <nav>
-                    <ul class="nav-links">
-                        <li><a href="/" >Home</a></li>
-                        <li><a href="/blog" >Blog</a></li>
-                    </ul>
-                </nav>
+        <div class="headbar">
+            <div class="sitename">
+                Luca's Blog
             </div>
-        
-            <main>
-                <article>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/" >Home</a></li>
+                    <li><a href="/blog" >Blog</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <main>
+            <article>
     <header>
         <h1 class="post-title">(An Attempt at) Pwning a Chip8 Emulator</h1>
         <div class="post-author">Author: Luca Bertozzi</div>
@@ -41,12 +58,6 @@
                 <ul>
                     
                     <li>binary-exploitation</li>
-                    
-                    <li>more</li>
-                    
-                    <li>test</li>
-                    
-                    <li>tags</li>
                     
                 </ul>
             </div>
@@ -105,7 +116,7 @@ decrement of the stack pointer for the return instruction</p>
 <p>do not check if the stack will under/over-flow respectively. This can also be used to corrupt memory beyond the limits of the
 <code class="language-plaintext highlighter-rouge">chip.stack</code> array! The question is now: can this be exploited? Can we make a malicious ROM capable of running arbitrary code?</p>
 
-<h1 id="exploitation-attempt">Exploitation Attempt</h1>
+<h2 id="exploitation-attempt">Exploitation Attempt</h2>
 
 <p>For a start let’s try using a position <em>dependent</em> executable by modifying the <code class="language-plaintext highlighter-rouge">makefile</code></p>
 <div class="language-makefile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Makefile for CHIP-8 Emulator Project
@@ -165,7 +176,7 @@ Now that I knew I could overwrite global memory after <code class="language-plai
 point the plan was using the above primitive to make the global <code class="language-plaintext highlighter-rouge">renderer</code> pointer point to a memory region I control, where
 I would place a forged <code class="language-plaintext highlighter-rouge">SDL_Renderer</code> structure.</p>
 
-<h2 id="writing-arbitrary-values-using-the-write-primitive">Writing arbitrary values using the write primitive</h2>
+<h3 id="writing-arbitrary-values-using-the-write-primitive">Writing arbitrary values using the write primitive</h3>
 <p>Let me focus on how exactly the overwriting of the <code class="language-plaintext highlighter-rouge">renderer</code> pointer works. The objective here is overwriting it with
 the value <code class="language-plaintext highlighter-rouge">0x406a5e</code> which points somewhere after the global variables in an area I control via the overflow. Notice that the 
 primitive allows to write 16 bits integers and we need to use it twice to first write the value <code class="language-plaintext highlighter-rouge">0x6a5e</code> in the low bits and then
@@ -233,7 +244,7 @@ JUMP 0x3e    ; jump at 0x3e triggering the write
 <p>Again <code class="language-plaintext highlighter-rouge">0x3e</code> is what we want to write minus 2. Notice that the stack pointer is incremented by call itself so we are already 
 writing in the right memory location. Now what will be executed next depends on what we put at address <code class="language-plaintext highlighter-rouge">0x222</code>, but we will discuss this later.</p>
 
-<h1 id="arbitrary-call-primitive">Arbitrary call primitive</h1>
+<h3 id="arbitrary-call-primitive">Arbitrary call primitive</h3>
 <p>Now that we control the <code class="language-plaintext highlighter-rouge">renderer</code> pointer we should be able to use its vtable to get an arbitrary call primitive pretty easily, 
 right?
 Well, unfortunately the <code class="language-plaintext highlighter-rouge">SDL2</code> pointers are validated against a global hash table and unless we control also that hash table, the 
@@ -522,7 +533,7 @@ memory, there may be some address which can be written and is also in the VM’s
 <p>What I can however do is place the <code class="language-plaintext highlighter-rouge">interface</code> in the Chip8’s memory while having the fake music object places at the already said
 address: <code class="language-plaintext highlighter-rouge">0x406a5e</code>.</p>
 
-<h1 id="controlling-calls-from-the-chip8-assembly">Controlling <code class="language-plaintext highlighter-rouge">call</code>s from the Chip8 assembly</h1>
+<h3 id="controlling-calls-from-the-chip8-assembly">Controlling <code class="language-plaintext highlighter-rouge">call</code>s from the Chip8 assembly</h3>
 
 <p>Now I am in a position in which I can control <code class="language-plaintext highlighter-rouge">call</code> instructions (the x64 <code class="language-plaintext highlighter-rouge">call</code>, not the chip8’s) from the chip8’s assembly,
 by simplying writing where I want to call at a specific memory location and then triggering the sound. Before at address <code class="language-plaintext highlighter-rouge">0x222</code>
@@ -536,7 +547,7 @@ zsh: segmentation fault  ./Chip8 exploit
 
 </code></pre></div></div>
 
-<h1 id="arbitrary-file-read-using-load_rom">Arbitrary file read using <code class="language-plaintext highlighter-rouge">load_ROM</code></h1>
+<h3 id="arbitrary-file-read-using-load_rom">Arbitrary file read using <code class="language-plaintext highlighter-rouge">load_ROM</code></h3>
 
 <p>There is one interesting function to call and it is <code class="language-plaintext highlighter-rouge">load_ROM</code>! This just read any file into the Chip8’s memory starting at
 address <code class="language-plaintext highlighter-rouge">0x200</code>. I thought I can just read <code class="language-plaintext highlighter-rouge">/proc/self/maps</code> and kill ASLR. Unfortunately, I’d like to find the <code class="language-plaintext highlighter-rouge">libc</code> base
@@ -546,7 +557,7 @@ turns out I can’t really read files under <code class="language-plaintext high
 <p>Overall this is an interesting primitive, but not being able to read <code class="language-plaintext highlighter-rouge">/proc</code> files leaves me confused on how to use this to defeat
 ASLR (which is what keeping me from calling <code class="language-plaintext highlighter-rouge">system</code> and getting arbitrary code execution).</p>
 
-<h1 id="conclusion">Conclusion</h1>
+<h2 id="conclusion">Conclusion</h2>
 
 <p>Unfortunately I was not able to turn this into arbitrary code execution: my limited knowledge and the fact that the imported 
 functions by the binary are so few make the exploitation not straightforward. However I would argue there are loads of 
@@ -799,11 +810,11 @@ by sending a DM on <a href="https://x.com/lucabtz_">X</a>, thanks for reading!</
 </div>
 
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-            </main>
-        
-            <footer>
-                Copyright - Luca Bertozzi - Made with Jekyll
-            </footer>
+        </main>
+
+        <footer>
+            Copyright - Luca Bertozzi - Made with Jekyll
+        </footer>
     </div>
 </body>
 

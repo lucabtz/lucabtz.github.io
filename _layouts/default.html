@@ -4,8 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page.title }} - {{ site.title }}</title>
 
+    {% if page.description %}
+    <meta name="description" content="{{ page.description }}">
+    <meta property="og:description" content="{{ page.description }}" />
+    {% else %}
+    <meta name="description" content="{{ site.description }}">
+    <meta property="og:description" content="{{ site.description }}" />
+    {% endif %}
+
+    <meta property="og:title" content="{{ page.title }}" />
+    {% if page.is_post %}
+    <meta property="og:type" content="article" />
+    {% else %}
+    <meta property="og:type" content="website" />
+    {% endif %}
+    <meta property="og:url" content="{{ page.url }}" />
+    <meta property="og:image" content="{{ site.url }}/images/pic.jpg">
+    <meta property="og:site_name" content="{{ site.title }}">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <meta name="twitter:site" content="{{ site.twitter_username }}">
+
+
+    <title>{{ page.title }} - {{ site.title }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,25 +39,25 @@
 
 <body>
     <div class="container">
-            <div class="headbar">
-                <div class="sitename">
-                    <h1>{{ site.title }}</h1>
-                </div>
-                <nav>
-                    <ul class="nav-links">
-                        <li><a href="/" {% if page.title=="Home" %}class="active-page" {% endif %}>Home</a></li>
-                        <li><a href="/blog" {% if page.title=="Blog" %}class="active-page" {% endif %}>Blog</a></li>
-                    </ul>
-                </nav>
+        <div class="headbar">
+            <div class="sitename">
+                {{ site.title }}
             </div>
-        
-            <main>
-                {{ content }}
-            </main>
-        
-            <footer>
-                Copyright - Luca Bertozzi - Made with Jekyll
-            </footer>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/" {% if page.title=="Home" %}class="active-page" {% endif %}>Home</a></li>
+                    <li><a href="/blog" {% if page.title=="Blog" %}class="active-page" {% endif %}>Blog</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <main>
+            {{ content }}
+        </main>
+
+        <footer>
+            Copyright - Luca Bertozzi - Made with Jekyll
+        </footer>
     </div>
 </body>
 

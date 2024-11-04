@@ -56,7 +56,7 @@ dumps it using the `%ln` format with the appropriate argument index.
 Now that we have the address we want to write too we can leak there some `libc` address. In particular we have the address of
 `__libc_start_call_main+122`, `0x7fa214b91dba`, on the stack. To leak this we need to use first the format `%*15$c` which
 reads the argument with index 15 into the character counter. In particular the `*15$` part says that the 15th argument, which
-is supposed to be an `int`, stores the value that need to be used as the field (refer to the man pages for details).
+is supposed to be an `int`, stores the value that need to be used as the field width (refer to the man pages for details).
 This is precisely the argument index of the `__libc_start_call_main+122` address.
 Unfortunately, we do not control the type here, the value is interpreted as `int`, so we can only read the lower 32 bits. However 
 this will prove sufficient, because we will just overwrite the lower 32 bits of the GOT entry of `puts`.
@@ -112,7 +112,7 @@ However converting to decimal is not so easy as there is no division operation o
 What I ended up doing is checking the values bit by bit and adding the format strings `%1$<some power of 2>c`: for example the
 binary number `1011` would convert to `%1$1c%1$2c%1$8c`. I also spitted the write in two steps as this seemed to work better
 and it also produce smaller format strings, so each time I write only 16 bits using the format `%14$hn` (`14` references the
-pointer to `puts@got[plt]` we previously written on the stack). Splitting the write in two also means we need to update this 
+pointer to `puts@got[plt]` we previously written on the stack). Splitting the write in two also means we need to update the GOT address on the stack
 before the second write.
 
 After this is done the exploit is completed using again the arbitrary call primitive to call `puts@plt` with any command we

@@ -45,6 +45,7 @@ highlighter: rouge
 theme: null
 plugins:
   - jekyll-feed
+  - jekyll-sitemap
 
 sass:
   style: compressed

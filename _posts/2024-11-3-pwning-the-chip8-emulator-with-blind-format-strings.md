@@ -1,6 +1,6 @@
 ---
 title: Pwning the Chip8 Emulator with Blind Format Strings
-description: I exploit multiple vulnerabilities in a student's Chip8 emulator project as if it was a CTF, and obtain RCE
+description: Continuation of the previous post. I use the built arbitrary call primitive using some blind format string exploitation techniques to achieve RCE.
 tags: binary-exploitation format-string
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: (An Attempt at) Pwning a Chip8 Emulator
-description: I try to exploit multiple vulnerabilities in a student's project as if it was a CTF
+description: I try to exploit multiple vulnerabilities in a student's Chip8 emulator project as if it was a CTF. I build an arbitrary call primitive exploiting SDL_mixer vtables.
 tags: binary-exploitation
 ---
 

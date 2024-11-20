@@ -1,0 +1,2 @@
+User-agent: *
+Sitemap: https://lucabtz.com/sitemap.xml

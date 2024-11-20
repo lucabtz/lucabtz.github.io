@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<head>
+<head>  
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     
-    <meta name="description" content="I exploit multiple vulnerabilities in a student's Chip8 emulator project as if it was a CTF, and obtain RCE">
-    <meta property="og:description" content="I exploit multiple vulnerabilities in a student's Chip8 emulator project as if it was a CTF, and obtain RCE" />
+    <meta name="description" content="Continuation of the previous post. I use the built arbitrary call primitive using some blind format string exploitation techniques to achieve RCE.">
+    <meta property="og:description" content="Continuation of the previous post. I use the built arbitrary call primitive using some blind format string exploitation techniques to achieve RCE." />
     
 
     <meta property="og:title" content="Pwning the Chip8 Emulator with Blind Format Strings" />
@@ -43,6 +43,13 @@
                 <ul class="nav-links">
                     <li><a href="/">Home</a></li>
                     <li><a href="/blog">Blog</a></li>
+                    <li><a href="/resume">Resume</a></li>
+                    <li>
+                        <div class="feed-button">
+                            <img class="rss-icon" src="/assets/images/rss.png" alt="RSS feed">
+                            <a href="/feed.xml">Feed</a>
+                        </div>
+                    </li>
                 </ul>
             </nav>
         </div>
@@ -72,7 +79,7 @@
                     </li>
                     <li>
                         <script src="https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
-                        <script type="IN/Share" data-url="/blog/pwning-the-chip8-emulator-with-blind-format-strings"></script>
+                        <script type="IN/Share" data-url="http://localhost:4000/blog/pwning-the-chip8-emulator-with-blind-format-strings"></script>
                     </li>
                 </ul>
             </div>
@@ -128,7 +135,7 @@ dumps it using the <code class="language-plaintext highlighter-rouge">%ln</code>
 <p>Now that we have the address we want to write too we can leak there some <code class="language-plaintext highlighter-rouge">libc</code> address. In particular we have the address of
 <code class="language-plaintext highlighter-rouge">__libc_start_call_main+122</code>, <code class="language-plaintext highlighter-rouge">0x7fa214b91dba</code>, on the stack. To leak this we need to use first the format <code class="language-plaintext highlighter-rouge">%*15$c</code> which
 reads the argument with index 15 into the character counter. In particular the <code class="language-plaintext highlighter-rouge">*15$</code> part says that the 15th argument, which
-is supposed to be an <code class="language-plaintext highlighter-rouge">int</code>, stores the value that need to be used as the field (refer to the man pages for details).
+is supposed to be an <code class="language-plaintext highlighter-rouge">int</code>, stores the value that need to be used as the field width (refer to the man pages for details).
 This is precisely the argument index of the <code class="language-plaintext highlighter-rouge">__libc_start_call_main+122</code> address.
 Unfortunately, we do not control the type here, the value is interpreted as <code class="language-plaintext highlighter-rouge">int</code>, so we can only read the lower 32 bits. However 
 this will prove sufficient, because we will just overwrite the lower 32 bits of the GOT entry of <code class="language-plaintext highlighter-rouge">puts</code>.
@@ -184,7 +191,7 @@ However converting to decimal is not so easy as there is no division operation o
 <p>What I ended up doing is checking the values bit by bit and adding the format strings <code class="language-plaintext highlighter-rouge">%1$&lt;some power of 2&gt;c</code>: for example the
 binary number <code class="language-plaintext highlighter-rouge">1011</code> would convert to <code class="language-plaintext highlighter-rouge">%1$1c%1$2c%1$8c</code>. I also spitted the write in two steps as this seemed to work better
 and it also produce smaller format strings, so each time I write only 16 bits using the format <code class="language-plaintext highlighter-rouge">%14$hn</code> (<code class="language-plaintext highlighter-rouge">14</code> references the
-pointer to <code class="language-plaintext highlighter-rouge">puts@got[plt]</code> we previously written on the stack). Splitting the write in two also means we need to update this 
+pointer to <code class="language-plaintext highlighter-rouge">puts@got[plt]</code> we previously written on the stack). Splitting the write in two also means we need to update the GOT address on the stack
 before the second write.</p>
 
 <p>After this is done the exploit is completed using again the arbitrary call primitive to call <code class="language-plaintext highlighter-rouge">puts@plt</code> with any command we

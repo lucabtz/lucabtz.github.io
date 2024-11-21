@@ -15,7 +15,7 @@ title: Resume of Luca Bertozzi
 As a MSc in Theoretical Physics I can bring into the field of cybersecurity unique analytical and mathematical skills.
 
 I have been into computer programming since a young age and can program efficiently in a variety of languages including: C, C++ and 
-Python. I can understand X86 and X86-64 assembly and write custom shellcode, I'm passionate about binary exploitaion, malware 
+Python. I can understand X86 and X86-64 assembly and write custom shellcode. I'm passionate about binary exploitaion, malware 
 development, cryptography and reverse engineering.
 
 I have minor contributions to open source projects such as Arch Linux, I actively blog monthly 
@@ -23,7 +23,7 @@ on [lucabtz.com](https://lucabtz.com) and I share experience with other cybersec
 
 ## Skills
 - Programming Languages: C, C++, Python, Java, JavaScript, Bash, Assembly
-- Tools: git, docker
+- Tools: git, docker, ghidra, gdb
 - I learn fast
 
 ## Education
@@ -34,7 +34,9 @@ on [lucabtz.com](https://lucabtz.com) and I share experience with other cybersec
 
   Years: 2021 - 2024
 
-  Score: 110/110, thesis title: Integrability Structures in SU(2) Supersymmetric Gauge Theory and AdS Black Holes
+  Score: 110/110
+  
+  Thesis title: Integrability Structures in SU(2) Supersymmetric Gauge Theory and AdS Black Holes
 
 
 - **BSc in Physics**

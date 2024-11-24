@@ -18,6 +18,7 @@ Other than computers I like cooking, sailing and travelling.
 
 You can also contact me on the following platforms:
 - [lucabtz on GitHub](https://github.com/lucabtz)
+- [@lucabtz.com on BlueSky](https://bsky.app/profile/lucabtz.com)
 - [@lucabtz_ on X](https://x.com/lucabtz_)
 - [@lucabtz@infosec.exchange on the Fediverse](https://infosec.exchange/@lucabtz)
 - lucabtz on Discord

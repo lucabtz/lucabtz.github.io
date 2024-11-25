@@ -16,6 +16,7 @@ occasionaly, life in general.
 
 Other than computers I like cooking, sailing and travelling.
 
+## Contacts
 You can also contact me on the following platforms:
 - [lucabtz on GitHub](https://github.com/lucabtz)
 - [@lucabtz.com on BlueSky](https://bsky.app/profile/lucabtz.com)

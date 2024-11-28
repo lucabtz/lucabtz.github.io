@@ -1,5 +1,7 @@
+@import 'colors';
+
 .post-card {
-    border: 1px solid black;
+    border: 1px solid $box-border-color;
     list-style-type: none;
     padding: 10px;
     margin-bottom: 30px;

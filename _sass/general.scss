@@ -1,5 +1,4 @@
-$bg-color: #fdfdfd;
-$text-color: #333;
+@import 'colors';
 
 @mixin max-size {
     width: 100%;
@@ -88,7 +87,7 @@ main {
 }
 
 a, a:visited {
-    color: rgb(87, 87, 233);
+    color: $link-color;
 }
 
 footer {

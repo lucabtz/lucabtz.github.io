@@ -112,6 +112,8 @@ code.highlighter-rouge {
 
 pre.highlight {
     overflow-x: auto;
+    scrollbar-color: $scroller-color $scrollbar-color;
+    padding: 10px;
 }
 
 article {

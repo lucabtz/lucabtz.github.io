@@ -1,3 +1,6 @@
+$switcher-text-light: "💡On";
+$switcher-text-dark: "💡Off";
+
 @mixin max-size {
     width: 100%;
     max-width: 1000px;
@@ -43,6 +46,21 @@ body {
     }
 }
 
+#switcher {
+    display: none;
+
+    & ~ label::before {
+        content: $switcher-text-dark;
+        color: $link-color;
+        text-decoration: underline;
+    }
+    
+    
+    &:checked ~ label::before {
+        content: $switcher-text-light;
+    }
+}
+
 
 .sitename {
     font-size: 24px;
@@ -78,7 +96,6 @@ body {
     margin-left: 30px;
     float: right;
 }
-
 
 a,
 a:visited {
@@ -129,7 +146,6 @@ main {
             margin-top: 10px;
         }
     }
-
 
     main {
         text-align: left;

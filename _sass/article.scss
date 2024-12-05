@@ -174,3 +174,24 @@ a.share-bluesky {
         font-family: Helvetica, Arial, sans-serif;
     }
 }
+
+.attachments {
+    list-style-type: none;
+    margin-left: 0px;
+
+    li {
+        padding: 10px;
+        border: 1px solid $box-border-color;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        
+        svg {
+            height: 50px;
+            width: auto;
+            fill: $text-color;
+            margin-right: 10px;
+        }
+    }
+    
+}

@@ -34,6 +34,16 @@ $header-top-spacing: 25px;
             border: 1px solid $box-border-color;
             padding: 3px;
             @include margin-top-bottom(3px);
+        
+            a {
+                color: $text-color;
+                text-decoration: none;
+
+                &:hover {
+                    color: $link-color;
+                    text-decoration: underline;
+                }
+            }
         }
     }
 }

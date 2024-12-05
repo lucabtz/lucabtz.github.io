@@ -12,7 +12,7 @@ layout: default
                 <div>Tags</div>
                 <ul>
                     {% for tag in page.tags %}
-                    <li>{{ tag }}</li>
+                    <li><a href="/tags#{{ tag }}">{{ tag }}</a></li>
                     {% endfor %}
                 </ul>
             </div>
@@ -31,7 +31,7 @@ layout: default
                     </li>
                     <li>
                         <a href="https://twitter.com/share?ref_src=twsrc%5Etfw" class="twitter-share-button"
-                            data-show-count="false"></a>
+                        data-show-count="false"></a>
                     </li>
                     <li>
                         <script src="https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>

@@ -22,6 +22,7 @@ You can also contact me on the following platforms:
 - [@lucabtz.com on BlueSky](https://bsky.app/profile/lucabtz.com)
 - [@lucabtz_ on X](https://x.com/lucabtz_)
 - [@lucabtz@infosec.exchange on the Fediverse](https://infosec.exchange/@lucabtz)
+- lucabtz on Libera.Chat and EFnet
 - lucabtz on Discord
 - [lucabertozzi.pub@gmail.com](mailto:lucabertozzi.pub@gmail.com)
 - [Luca Bertozzi on LinkedIn](https://www.linkedin.com/in/luca-bertozzi-47858a180/)

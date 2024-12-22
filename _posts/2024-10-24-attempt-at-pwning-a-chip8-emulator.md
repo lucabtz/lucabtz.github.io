@@ -7,8 +7,7 @@ attachments:
     - filename: exploit.py
 ---
 
-Recently I was browsing the projects section on the Discord server of the C-ASM Community
-(~~which is a great community and you should join~~ which is now some [crypto scam](https://x.com/lucabtz_/status/1863580828955193449)) 
+Recently I was browsing the projects section on a Discord server
 and I found an interesting [Chip8 Emulator project](https://github.com/Docas95/CHIP8-Emulator-C). As I was reading through the 
 code and I reached the `load_ROM` function I immediately saw a problem
 ```c

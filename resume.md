@@ -18,15 +18,6 @@ I have been into computer programming since a young age and can program efficien
 Python. I can understand X86 and X86-64 assembly and write custom shellcode. I'm passionate about binary exploitaion, malware 
 development, cryptography and reverse engineering.
 
-## Projects
-- minor contributions to open source projects such as Arch Linux
-- personal blog at [lucabtz.com](https://lucabtz.com) where I actively blog monthly
-
-## Skills
-- Programming Languages: C, C++, Python, Java, JavaScript, Bash, Assembly
-- Tools: git, docker, ghidra, gdb
-- I learn fast
-
 ## Education
 
 - **Master of Science in Theoretical Physics**
@@ -47,3 +38,16 @@ development, cryptography and reverse engineering.
   Years: 2018 - 2021
 
   Score: 110/110
+
+## Projects
+- minor contributions to open source projects such as Arch Linux
+- personal blog at [lucabtz.com](https://lucabtz.com) where I actively blog monthly
+
+## Skills
+- Programming Languages: C, C++, Python, Java, JavaScript, Bash, Assembly
+- Tools: git, docker, ghidra, gdb
+- I learn fast
+
+## Languages
+- Italian (mother tongue)
+- English (C1)

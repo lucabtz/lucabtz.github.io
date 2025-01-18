@@ -47,7 +47,6 @@ theme: null
 plugins:
   - jekyll-feed
   - jekyll-sitemap
-  - jekyll-target-blank
 
 sass:
   style: compressed

@@ -9,15 +9,16 @@ attachments:
 
 This is a continuation of my previous post, if you have not read it you can find it [here](https://lucabtz.com/blog/attempt-at-pwning-a-chip8-emulator).
 
-As I was browsing through X I came across this [post](https://www.synacktiv.com/publications/exploiting-a-blind-format-string-vulnerability-in-modern-binaries-a-case-study-from).
+As I was browsing through X I came across this [post](https://www.synacktiv.com/publications/exploiting-a-blind-format-string-vulnerability-in-modern-binaries-a-case-study-from){:target="_blank"}.
 When trying to exploit the emulator before I realized I could call `printf` with an arbitrary format string, I also checked 
 quickly resources online, but mainly they exploit format string bugs which are not blind (you can see and read the output
 of the `printf`). Here the situation is different as the output would be on the terminal of the remote computer which we can't 
 read. However, as I saw the above post I realized blind format string exploits are a thing and I decided to investigate whether
 they would work here.
 
-For context I reccomend you read the post I linked as well as keep the [man page for printf](https://www.man7.org/linux/man-pages/man3/printf.3.html)
-open while you read and refer to it often.
+For context I reccomend you read the post I linked as well as keep the
+[man page for printf](https://www.man7.org/linux/man-pages/man3/printf.3.html){:target="_blank"} open while you read and refer to it 
+often.
 
 ## Blind `printf` exploit
 

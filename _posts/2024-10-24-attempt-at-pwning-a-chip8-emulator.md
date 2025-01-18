@@ -8,8 +8,8 @@ attachments:
 ---
 
 Recently I was browsing the projects section on a Discord server
-and I found an interesting [Chip8 Emulator project](https://github.com/Docas95/CHIP8-Emulator-C). As I was reading through the 
-code and I reached the `load_ROM` function I immediately saw a problem
+and I found an interesting [Chip8 Emulator project](https://github.com/Docas95/CHIP8-Emulator-C){:target="_blank"}. As I was reading 
+through the code and I reached the `load_ROM` function I immediately saw a problem
 ```c
 // load content from ROM into memory
 void load_ROM(char* filename){

@@ -119,6 +119,12 @@ pre.highlight {
 article {
     p {
         @include p-space();
+
+        a[target='_blank'] {
+            &:after {
+                content: "↗";
+            }
+        }
     }
 
     ul {
@@ -157,7 +163,7 @@ a.share-bluesky {
     border-radius: 0.2em;
     height: 21px;
     text-decoration: none;
-    
+
     display: flex;
     flex-direction: row;
     align-items: center;

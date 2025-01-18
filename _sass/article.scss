@@ -34,7 +34,7 @@ $header-top-spacing: 25px;
             border: 1px solid $box-border-color;
             padding: 3px;
             @include margin-top-bottom(3px);
-        
+
             a {
                 color: $text-color;
                 text-decoration: none;
@@ -152,23 +152,53 @@ article {
 }
 
 a.share-bluesky {
-    border-radius: 0.2em;
     background: #1185fe;
+
+    border-radius: 0.2em;
     height: 21px;
     text-decoration: none;
+    
     display: flex;
     flex-direction: row;
+    align-items: center;
+
     padding-left: 5px;
     padding-right: 5px;
 
     svg {
-        height: 21px;
-        width: 21px;
+        height: 15px;
+        width: 15px;
         margin-right: 3px;
     }
 
-    span {
-        line-height: 21px;
+    div {
+        font-size: 15px;
+        color: white;
+        font-family: Helvetica, Arial, sans-serif;
+    }
+}
+
+a.share-mastodon {
+    background: #2b90d9;
+
+    border-radius: 0.2em;
+    height: 21px;
+    text-decoration: none;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    padding: 5px;
+
+    svg {
+        height: 15px;
+        width: 15px;
+        margin-right: 3px;
+        fill: white;
+    }
+
+    div {
         font-size: 15px;
         color: white;
         font-family: Helvetica, Arial, sans-serif;
@@ -185,7 +215,7 @@ a.share-bluesky {
         display: flex;
         flex-direction: row;
         align-items: center;
-        
+
         svg {
             height: 50px;
             width: auto;
@@ -193,5 +223,5 @@ a.share-bluesky {
             margin-right: 10px;
         }
     }
-    
+
 }

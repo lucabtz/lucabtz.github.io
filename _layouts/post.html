@@ -20,7 +20,7 @@ layout: default
                 <ul>
                     <li>
                         <a href="https://mastodonshare.com/?text={{ page.title }}&url={{ site.url }}{{ page.url }}"
-                            class="share-mastodon" target="_blank">
+                            class="share share-mastodon" target="_blank" title="Share on Mastodon">
                             <svg width="74" height="79" viewBox="0 0 74 79" fill="black"
                                 xmlns="http://www.w3.org/2000/svg">
                                 <path
@@ -31,7 +31,7 @@ layout: default
                         </a>
                     </li>
                     <li>
-                        <a class="share-bluesky" target="_blank" title="Share on Bluesky"
+                        <a class="share share-bluesky" target="_blank" title="Share on Bluesky"
                             href="https://bsky.app/intent/compose?text={{ site.url }}{{ page.url }}">
                             <svg width="1em" height="1em" fill="#fff" viewBox="0 0 600 530"
                                 xmlns="http://www.w3.org/2000/svg">
@@ -42,12 +42,28 @@ layout: default
                         </a>
                     </li>
                     <li>
-                        <a href="https://twitter.com/share?ref_src=twsrc%5Etfw" class="twitter-share-button"
-                            data-show-count="false"></a>
+                        <a class="share share-x" target="_blank" title="Share on X"
+                            href="https://x.com/intent/post?original_referer={{ site.url }}%2F&text={{ page.title }}&url={{ site.url }}{{ page.url }}">
+                            <svg width="1200" height="1227" viewBox="0 0 1200 1227" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"
+                                    fill="white" />
+                            </svg>
+                            <div>Post</div>
+                        </a>
                     </li>
                     <li>
-                        <script src="https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
-                        <script type="IN/Share" data-url="{{ site.url }}{{ page.url }}"></script>
+                        <a class="share share-linkedin" target="_blank" title="Share on LinkedIn"
+                            href="https://www.linkedin.com/feed/?linkOrigin=LI_BADGE&shareActive=true&shareUrl={{ site.url }}{{ page.url }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100"
+                                viewBox="0 0 50 50">
+                                <path
+                                    d="M41,4H9C6.24,4,4,6.24,4,9v32c0,2.76,2.24,5,5,5h32c2.76,0,5-2.24,5-5V9C46,6.24,43.76,4,41,4z M17,20v19h-6V20H17z M11,14.47c0-1.4,1.2-2.47,3-2.47s2.93,1.07,3,2.47c0,1.4-1.12,2.53-3,2.53C12.2,17,11,15.87,11,14.47z M39,39h-6c0,0,0-9.26,0-10 c0-2-1-4-3.5-4.04h-0.08C27,24.96,26,27.02,26,29c0,0.91,0,10,0,10h-6V20h6v2.56c0,0,1.93-2.56,5.81-2.56 c3.97,0,7.19,2.73,7.19,8.26V39z">
+                                </path>
+                            </svg>
+                            <div>Share</div>
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -97,5 +113,3 @@ layout: default
         {% endif %}
     </div>
 </div>
-
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>

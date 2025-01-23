@@ -60,6 +60,7 @@ a.share {
 I used the service [Mastodon Share](https://mastodonshare.com){:target="_blank"} to implement the share button. The code
 follows
 ```html
+{% raw %}
 <a href="https://mastodonshare.com/?text={{ page.title }}&url={{ site.url }}{{ page.url }}"
     class="share share-mastodon" target="_blank" title="Share on Mastodon">
     <svg width="74" height="79" viewBox="0 0 74 79" fill="black"
@@ -70,6 +71,7 @@ follows
     </svg>
     <div>Toot</div>
 </a>
+{% endraw %}
 ```
 And for the style:
 ```scss
@@ -89,6 +91,7 @@ a.share-mastodon {
 ## BlueSky
 For BlueSky we don't need a specific service for sharing. My first inspiration for the code was [this blog post](https://www.pietschsoft.com/post/2024/11/22/how-to-add-share-on-bluesky-action-intent-button-to-your-website){:target="_blank"}
 ```html
+{% raw %}
 <a class="share share-bluesky" target="_blank" title="Share on Bluesky"
     href="https://bsky.app/intent/compose?text={{ site.url }}{{ page.url }}">
     <svg width="1em" height="1em" fill="inherit" viewBox="0 0 600 530"
@@ -98,6 +101,7 @@ For BlueSky we don't need a specific service for sharing. My first inspiration f
     </svg>
     <div>Skeet</div>
 </a>
+{% endraw %}
 ```
 And the style:
 ```scss
@@ -120,6 +124,7 @@ Mastodon or BlueSky so I'm still there. Also there I often find interesting post
 having an X share button" would only hurt me, rather than X.
 The HTML:
 ```html
+{% raw %}
 <a class="share share-x" target="_blank" title="Share on X"
     href="https://x.com/intent/post?original_referer={{ site.url }}%2F&text={{ page.title }}&url={{ site.url }}{{ page.url }}">
     <svg width="1200" height="1227" viewBox="0 0 1200 1227" fill="inherit"
@@ -130,6 +135,7 @@ The HTML:
     </svg>
     <div>Post</div>
 </a>
+{% endraw %}
 ```
 The style of course involes the "fascist black" color:
 ```scss
@@ -149,6 +155,7 @@ a.share-x {
 ## LinkedIn
 The HTML code:
 ```html
+{% raw %}
 <a class="share share-linkedin" target="_blank" title="Share on LinkedIn"
     href="https://www.linkedin.com/feed/?linkOrigin=LI_BADGE&shareActive=true&shareUrl={{ site.url }}{{ page.url }}">
     <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100"
@@ -159,6 +166,7 @@ The HTML code:
     </svg>
     <div>Share</div>
 </a>
+{% endraw %}
 ```
 And the style:
 ```scss

@@ -60,8 +60,7 @@ a.share {
 I used the service [Mastodon Share](https://mastodonshare.com){:target="_blank"} to implement the share button. The code
 follows
 ```html
-{% raw %}
-<a href="https://mastodonshare.com/?text={{ page.title }}&url={{ site.url }}{{ page.url }}"
+{% raw %}<a href="https://mastodonshare.com/?text={{ page.title }}&url={{ site.url }}{{ page.url }}"
     class="share share-mastodon" target="_blank" title="Share on Mastodon">
     <svg width="74" height="79" viewBox="0 0 74 79" fill="black"
         xmlns="http://www.w3.org/2000/svg">
@@ -70,8 +69,7 @@ follows
             fill="inherit" />
     </svg>
     <div>Toot</div>
-</a>
-{% endraw %}
+</a>{% endraw %}
 ```
 And for the style:
 ```scss
@@ -91,8 +89,7 @@ a.share-mastodon {
 ## BlueSky
 For BlueSky we don't need a specific service for sharing. My first inspiration for the code was [this blog post](https://www.pietschsoft.com/post/2024/11/22/how-to-add-share-on-bluesky-action-intent-button-to-your-website){:target="_blank"}
 ```html
-{% raw %}
-<a class="share share-bluesky" target="_blank" title="Share on Bluesky"
+{% raw %}<a class="share share-bluesky" target="_blank" title="Share on Bluesky"
     href="https://bsky.app/intent/compose?text={{ site.url }}{{ page.url }}">
     <svg width="1em" height="1em" fill="inherit" viewBox="0 0 600 530"
         xmlns="http://www.w3.org/2000/svg">
@@ -100,8 +97,7 @@ For BlueSky we don't need a specific service for sharing. My first inspiration f
             d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z" />
     </svg>
     <div>Skeet</div>
-</a>
-{% endraw %}
+</a>{% endraw %}
 ```
 And the style:
 ```scss
@@ -124,8 +120,7 @@ Mastodon or BlueSky so I'm still there. Also there I often find interesting post
 having an X share button" would only hurt me, rather than X.
 The HTML:
 ```html
-{% raw %}
-<a class="share share-x" target="_blank" title="Share on X"
+{% raw %}<a class="share share-x" target="_blank" title="Share on X"
     href="https://x.com/intent/post?original_referer={{ site.url }}%2F&text={{ page.title }}&url={{ site.url }}{{ page.url }}">
     <svg width="1200" height="1227" viewBox="0 0 1200 1227" fill="inherit"
         xmlns="http://www.w3.org/2000/svg">
@@ -134,8 +129,7 @@ The HTML:
             fill="white" />
     </svg>
     <div>Post</div>
-</a>
-{% endraw %}
+</a>{% endraw %}
 ```
 The style of course involes the "fascist black" color:
 ```scss
@@ -155,8 +149,7 @@ a.share-x {
 ## LinkedIn
 The HTML code:
 ```html
-{% raw %}
-<a class="share share-linkedin" target="_blank" title="Share on LinkedIn"
+{% raw %}<a class="share share-linkedin" target="_blank" title="Share on LinkedIn"
     href="https://www.linkedin.com/feed/?linkOrigin=LI_BADGE&shareActive=true&shareUrl={{ site.url }}{{ page.url }}">
     <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="100" height="100"
         viewBox="0 0 50 50" fill="inherit">
@@ -165,8 +158,7 @@ The HTML code:
         </path>
     </svg>
     <div>Share</div>
-</a>
-{% endraw %}
+</a>{% endraw %}
 ```
 And the style:
 ```scss

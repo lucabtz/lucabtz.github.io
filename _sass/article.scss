@@ -184,6 +184,10 @@ a.share {
 a.share-bluesky {
     background: #1185fe;
 
+    svg {
+        fill: white;
+    }
+
     div {
         color: white;
     }
@@ -203,6 +207,10 @@ a.share-mastodon {
 
 a.share-x {
     background: black;
+
+    svg {
+        fill: white;
+    }
 
     div {
         color: white;

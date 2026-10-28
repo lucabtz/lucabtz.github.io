@@ -2,9 +2,10 @@
 title: Pwning the Chip8 Emulator with Blind Format Strings
 description: Continuation of the previous post. I use the built arbitrary call primitive using some blind format string exploitation techniques to achieve RCE.
 tags: binary-exploitation
-attachments-dir: pwning-the-chip8-emulator-with-blind-format-strings
 attachments:
-    - filename: exploit.py
+    - name: exploit.py
+      filename: pwning-the-chip8-emulator-with-blind-format-strings/exploit.py
+    
 ---
 
 This is a continuation of my previous post, if you have not read it you can find it [here](https://lucabtz.com/blog/attempt-at-pwning-a-chip8-emulator).

@@ -2,9 +2,9 @@
 title: (An Attempt at) Pwning a Chip8 Emulator
 description: I try to exploit multiple vulnerabilities in a student's Chip8 emulator project as if it was a CTF. I build an arbitrary call primitive exploiting SDL_mixer vtables.
 tags: binary-exploitation
-attachments-dir: attempt-at-pwning-a-chip8-emulator
 attachments:
-    - filename: exploit.py
+    - name: exploit.py 
+      filename: attempt-at-pwning-a-chip8-emulator/exploit.py
 ---
 
 Recently I was browsing the projects section on a Discord server

@@ -5,7 +5,7 @@ title: Tags
 
 {% for tag_kv in site.tags %}
 
-{% assign tag_name = tag_kv[0] %}
+{% assign tag_name = tag_kv[0] | escape %}
 {% assign posts = tag_kv[1] %}
 
 ## {{ tag_name }} {#{{ tag_name }}}

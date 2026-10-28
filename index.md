@@ -8,7 +8,7 @@ title: Home
 
 <img src="/assets/images/pic.jpg" class="profile-pic" alt="A photo of me and my wife" />
 
-{{ site.description }}
+{{ site.description | escape }}
 
 ## Contacts
 You can also contact me on the following platforms:
@@ -20,5 +20,5 @@ You can also contact me on the following platforms:
 
 ## Latest Blog Posts
 {% for post in site.posts limit: 3 %}
-- [{{ post.title }}]({{ post.url }})
+- [{{ post.title | escape }}]({{ post.url }})
 {% endfor %}

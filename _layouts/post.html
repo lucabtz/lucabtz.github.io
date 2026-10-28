@@ -4,15 +4,15 @@ layout: default
 
 <article>
     <header>
-        <h1 class="post-title">{{ page.title }}</h1>
-        <div class="post-author">Author: {{ page.author }}</div>
+        <h1 class="post-title">{{ page.title | escape }}</h1>
+        <div class="post-author">Author: {{ page.author | escape }}</div>
         <div class="post-date">{{ page.date | date: "%b %-d, %Y" }}</div>
         <div class="post-bar">
             <div class="post-tags">
                 <div>Tags</div>
                 <ul>
                     {% for tag in page.tags %}
-                    <li><a href="/tags#{{ tag }}">{{ tag }}</a></li>
+                    <li><a href="/tags#{{ tag | escape }}">{{ tag | escape }}</a></li>
                     {% endfor %}
                 </ul>
             </div>
@@ -83,7 +83,7 @@ layout: default
             </svg>
             <div>
                 <p>
-                    <a href="/assets/attachments/{{ attachment.filename }}" download>{{ attachment.name }}</a>
+                    <a href="/assets/attachments/{{ attachment.filename }}" download>{{ attachment.name | escape }}</a>
                 </p>
             </div>
         </li>
@@ -96,7 +96,7 @@ layout: default
     <div>
         {% if page.previous.url %}
         <a href="{{ page.previous.url }}">
-            Previous post: {{ page.previous.title }}
+            Previous post: {{ page.previous.title | escape }}
         </a>
         {% else %}
         Hey this is the first post!
@@ -105,7 +105,7 @@ layout: default
     <div>
         {% if page.next.url %}
         <a href="{{ page.next.url }}">
-            Next post: {{ page.next.title }}
+            Next post: {{ page.next.title | escape }}
         </a>
         {% else %}
         No more recent posts, sorry!

@@ -8,7 +8,7 @@ title: Home
 
 <img src="/assets/images/pic.jpg" class="profile-pic" alt="A photo of me and my wife" />
 
-I am a geek interested who got interested computers since I was fairly young. That got me fist into Electronics and then into Physics. I have always been interested in Mathematics: I enjoy Geometry and Logic.
+{{ site.description }}
 
 ## Contacts
 You can also contact me on the following platforms:

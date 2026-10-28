@@ -4,7 +4,7 @@ title: Resume of Luca Bertozzi
 ---
 
 ## Summary
-I am a geek interested who got interested computers since I was fairly young. That got me fist into Electronics
+I am a geek interested who got interested computers since I was fairly young. That got me first into Electronics
 and then into Physics. I have always been interested in Mathematics: I enjoy Geometry and Logic.
 
 ## Timeline

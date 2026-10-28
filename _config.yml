@@ -22,13 +22,12 @@ title: Luca's Blog
 email: lucabertozzi.pub@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   I am a geek interested who got interested computers since I was fairly young. 
-  That got me fist into Electronics and then into Physics. 
+  That got me first into Electronics and then into Physics. 
   I have always been interested in Mathematics: I enjoy Geometry and Logic.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://lucabtz.com" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: "@lucabtz_"
 github_username:  lucabtz
-available_for_hire: true
 
 defaults:
   - 

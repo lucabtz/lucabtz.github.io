@@ -1,6 +1,5 @@
 $paragraph-spacing: 10px;
 $header-top-spacing: 25px;
-$author-date-color: #666;
 
 @mixin margin-top-bottom($m) {
     margin-top: $m;
@@ -20,37 +19,49 @@ $author-date-color: #666;
     display: flex;
     flex-direction: row;
     align-items: center;
+
+    ul {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        padding-top: 10px;
+        padding-bottom: 10px;
+
+        li {
+            list-style-type: none;
+            margin-left: 10px;
+            border: 1px solid $box-border-color;
+            padding: 3px;
+            @include margin-top-bottom(3px);
+
+            a {
+                color: $text-color;
+                text-decoration: none;
+
+                &:hover {
+                    color: $link-color;
+                    text-decoration: underline;
+                }
+            }
+        }
+    }
 }
 
-.post-tags > ul {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-.post-tags > ul > li {
-    list-style-type: none;
-    margin-left: 10px;
-    border: 1px solid black;
-    padding: 3px;
-    @include margin-top-bottom(3px);
-}
 
 .post-title {
     font-size: 29px;
     text-align: left;
+    line-height: 30px;
 }
 
 .post-author {
     margin-top: 5px;
-    color: $author-date-color;
+    color: $light-text-color;
 }
 
 .post-date {
-    color: $author-date-color;
+    color: $light-text-color;
 }
 
 .post-bar {
@@ -60,61 +71,76 @@ $author-date-color: #666;
     align-items: center;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 750px) {
     .post-bar {
         flex-direction: column;
         align-items: start;
     }
 }
 
-.post-tags > div {
-    color: $author-date-color;
+.post-tags {
+    div {
+        color: $light-text-color;
+    }
 }
 
-.post-share > ul {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    padding-top: 10px;
-    padding-bottom: 10px;
+.post-share {
+    ul {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        padding-top: 10px;
+        padding-bottom: 10px;
+
+        li {
+            list-style-type: none;
+            margin-right: 10px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+    }
 }
 
-.post-share > ul > li {
-    list-style-type: none;
-    margin-right: 10px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-}
 
 code.highlighter-rouge {
-    background-color: #f8f8f8;
-    border: 1px solid #ccc;
+    background-color: $code-bg-color;
+    border: 1px solid $code-border-color;
     padding: 1px;
 }
 
 pre.highlight {
     overflow-x: auto;
+    scrollbar-color: $scroller-color $scrollbar-color;
+    padding: 10px;
 }
 
-article > p {
-    @include p-space();
-}
+article {
+    p {
+        @include p-space();
 
-article > ul {
-    margin-left: 30px;
-    @include p-space();
-}
+        a[target='_blank'] {
+            &:after {
+                content: "↗";
+            }
+        }
+    }
 
-article > h2 {
-    font-size: 24px;
-    @include h-space();
-}
+    ul {
+        margin-left: 30px;
+        @include p-space();
+    }
 
-article > h3 {
-    font-size: 21px;
-    @include h-space();
+    h2 {
+        font-size: 24px;
+        @include h-space();
+    }
+
+    h3 {
+        font-size: 21px;
+        @include h-space();
+    }
 }
 
 .post-nav {
@@ -122,11 +148,104 @@ article > h3 {
     display: flex;
     flex-direction: row;
     justify-content: space-evenly;
+
+    div {
+        border: 1px solid $box-border-color;
+        padding: 10px;
+        width: 45%;
+        text-align: center;
+    }
 }
 
-.post-nav > div {
-    border: 1px solid black;
-    padding: 10px;
-    width: 45%;
-    text-align: center;
+a.share {
+    border-radius: 0.2em;
+    height: 21px;
+    text-decoration: none;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    padding-left: 5px;
+    padding-right: 5px;
+
+    svg {
+        height: 15px;
+        width: 15px;
+        margin-right: 3px;
+    }
+
+    div {
+        font-size: 15px;
+        font-family: Helvetica, Arial, sans-serif;
+    }
+}
+
+a.share-bluesky {
+    background: #1185fe;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+a.share-mastodon {
+    background: #2b90d9;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+a.share-x {
+    background: black;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+a.share-linkedin {
+    background: #0a66c2;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+.attachments {
+    list-style-type: none;
+    margin-left: 0px;
+
+    li {
+        padding: 10px;
+        border: 1px solid $box-border-color;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        svg {
+            height: 50px;
+            width: auto;
+            fill: $text-color;
+            margin-right: 10px;
+        }
+    }
+
 }

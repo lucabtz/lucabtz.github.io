@@ -3,51 +3,27 @@ layout: page
 title: Resume of Luca Bertozzi
 ---
 
-## Contacts
-- Address: *send email for details*
-- Cellphone: *send email for details*
-- Email: [lucabertozzi.pub@gmail.com](mailto:lucabertozzi.pub@gmail.com)
-- Blog: [lucabtz.com](https://lucabtz.com)
-- GitHub: [lucabtz](https://github.com/lucabtz)
-- LinkedIn: [Luca Bertozzi](https://www.linkedin.com/in/luca-bertozzi-47858a180/)
-
 ## Summary
-As a MSc in Theoretical Physics I can bring into the field of cybersecurity unique analytical and mathematical skills.
+I am a geek interested who got interested computers since I was fairly young. That got me fist into Electronics
+and then into Physics. I have always been interested in Mathematics: I enjoy Geometry and Logic.
 
-I have been into computer programming since a young age and can program efficiently in a variety of languages including: C, C++ and 
-Python. I can understand X86 and X86-64 assembly and write custom shellcode. I'm passionate about binary exploitaion, malware 
-development, cryptography and reverse engineering.
-
-## Education
-
-- **Master of Science in Theoretical Physics**
-
-  *Alma Mater Studiorum, University of Bologna*
-
-  Years: 2021 - 2024
-
-  Score: 110/110
-  
-  Thesis title: Integrability Structures in SU(2) Supersymmetric Gauge Theory and AdS Black Holes
-
-
-- **BSc in Physics**
-  
-  *Alma Mater Studiorum, University of Bologna*
-  
-  Years: 2018 - 2021
-
-  Score: 110/110
-
-## Projects
-- minor contributions to open source projects such as Arch Linux
-- personal blog at [lucabtz.com](https://lucabtz.com) where I actively blog monthly
+## Timeline
+- 2026 - ongoing: **MSc in Mathematics** @ *Alma Mater Studiorum: University of Bologna*
+- May 2025 - Sep 2026: **C++ Developer** @ *Kosmosoft Engineering*
+- 2021 - 2024: **MSc in Theoretical Physics** @ *Alma Mater Studiorum: University of Bologna*
+- 2018 - 2021: **BSc in Physics** @ *Alma Mater Studiorum: University of Bologna*
+- 2014: **Started programming in JavaScript**
+- 1999: **Born**
 
 ## Skills
-- Programming Languages: C, C++, Python, Java, JavaScript, Bash, Assembly
-- Tools: git, docker, ghidra, gdb
+- *Favourite Programming Languages*: Haskell, C, C++, Python
+- *Favourite Tools*: git, docker
 - I learn fast
 
 ## Languages
 - Italian (mother tongue)
 - English (C1)
+- Tagalog (konti lang)
+
+## Contacts
+are on the [home page](/).

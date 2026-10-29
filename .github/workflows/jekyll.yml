@@ -2,8 +2,7 @@ name: Deploy Jekyll site to Pages
 
 on:
   push:
-    branches: [main]        # your default branch
-  workflow_dispatch:
+    branches: [main]
 
 permissions:
   contents: read
@@ -22,6 +21,7 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: ruby/setup-ruby@v1
         with:
+          ruby-version: 3.3
           bundler-cache: true
       - run: bundle exec jekyll build
         env:

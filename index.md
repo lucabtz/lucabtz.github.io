@@ -12,10 +12,10 @@ title: Home
 
 ## Contacts
 You can also contact me on the following platforms:
-- [lucabtz on GitHub](https://github.com/lucabtz)
+- [{{ site.email }}](mailto:{{ site.email }})
+- [{{ site.github_username }} on GitHub](https://github.com/{{ site.github_username }})
 - [@lucabtz.com on BlueSky](https://bsky.app/profile/lucabtz.com)
 - lucabtz on Discord
-- [lucabertozzi.pub@gmail.com](mailto:lucabertozzi.pub@gmail.com)
 - [Luca Bertozzi on LinkedIn](https://www.linkedin.com/in/luca-bertozzi-47858a180/)
 
 ## Latest Blog Posts

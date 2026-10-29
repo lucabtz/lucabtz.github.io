@@ -82,10 +82,11 @@ $header-top-spacing: 25px;
         align-items: center;
         padding-top: 10px;
         padding-bottom: 10px;
+        margin-left: 0px;
+        gap: 10px;
 
         li {
             list-style-type: none;
-            margin-right: 10px;
             display: flex;
             flex-direction: row;
             align-items: center;
@@ -137,12 +138,12 @@ article {
     margin-top: 30px;
     display: flex;
     flex-direction: row;
-    justify-content: space-evenly;
+    justify-content: space-between;
 
     div {
         border: 1px solid $box-border-color;
         padding: 10px;
-        width: 45%;
+        width: 49%;
         text-align: center;
     }
 }

@@ -22,10 +22,14 @@ $main-padding: 10px;
 
 body {
     font-size: 18px;
-    font-family: "IBM Plex Mono", monospace;
+    font-family: "IBM Plex Serif", serif;
     background-color: $bg-color;
     color: $text-color;
-    line-height: 30px;
+    line-height: 25px;
+}
+
+code {
+    font-family: "IBM Plex Mono", monospace;
 }
 
 a,

@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Resume of Luca Bertozzi
+title: Resume
 ---
 
 ## Summary

@@ -1,6 +1,6 @@
 ---
 title: JavaScript-free Share Buttons
-description: Continuation of the previous post. I use the built arbitrary call primitive using some blind format string exploitation techniques to achieve RCE.
+description: I show how I implemented share buttons on this site with no JavaScript
 tags: meta
 ---
 

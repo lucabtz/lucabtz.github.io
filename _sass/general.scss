@@ -1,7 +1,72 @@
+@use 'themes/light.scss';
+@use 'themes/dark.scss';
+
 $switcher-text-light: "💡On";
 $switcher-text-dark: "💡Off";
 $small-screen-breakpoint: 750px;
 $main-padding: 10px;
+$paragraph-spacing: 10px;
+$header-top-spacing: 25px;
+
+$bg-color: light-dark(light.$bg-color, dark.$bg-color);
+$text-color: light-dark(light.$text-color, dark.$text-color);
+$light-text-color: light-dark(light.$light-text-color, dark.$light-text-color);
+$link-color: light-dark(light.$link-color, dark.$link-color);
+$box-border-color: light-dark(light.$box-border-color, dark.$box-border-color);
+$code-bg-color: light-dark(light.$code-bg-color, dark.$code-bg-color);
+$code-border-color: light-dark(light.$code-border-color, dark.$code-border-color);
+$scroller-color: light-dark(light.$scroller-color, dark.$scroller-color);
+$scrollbar-color: light-dark(light.$scrollbar-color, dark.$scrollbar-color);
+
+:root {
+    color-scheme: light;
+}
+
+:root:has(#switcher:checked) {
+    color-scheme: dark;
+    @import 'code/base16.scss';
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not(:has(#switcher:checked)) { @import 'code/github.scss'; }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        @import 'code/base16.scss';
+    }
+    
+    :root:has(#switcher:checked) {
+        color-scheme: light;
+        @import 'code/github.scss';
+    }
+}
+
+#switcher {
+    display: none;
+
+    & ~ label::before {
+        content: $switcher-text-dark;
+        color: $link-color;
+        text-decoration: underline;
+    }
+    
+    &:checked ~ label::before {
+        content: $switcher-text-light;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        
+        & ~ label::before {
+            content: $switcher-text-light;
+        }
+        
+        &:checked ~ label::before {
+            content: $switcher-text-dark;
+        }
+    }
+}
 
 @mixin small-screen {
     @media (max-width: $small-screen-breakpoint) {
@@ -113,7 +178,6 @@ footer {
     padding-bottom: 0px;
     margin-top: 30px;
     @include max-size();
-    
 }
 
 @include small-screen {
@@ -153,20 +217,6 @@ footer {
     margin-right: 5px;
 }
 
-#switcher {
-    display: none;
-
-    & ~ label::before {
-        content: $switcher-text-dark;
-        color: $link-color;
-        text-decoration: underline;
-    }
-    
-    &:checked ~ label::before {
-        content: $switcher-text-light;
-    }
-}
-
 .post-card {
     border: 1px solid $box-border-color;
     list-style-type: none;
@@ -176,23 +226,6 @@ footer {
 
 .card-list {
     margin-left: 0px;
-}
-
-$paragraph-spacing: 10px;
-$header-top-spacing: 25px;
-
-@mixin margin-top-bottom($m) {
-    margin-top: $m;
-    margin-bottom: $m;
-}
-
-@mixin p-space {
-    @include margin-top-bottom($paragraph-spacing)
-}
-
-@mixin h-space {
-    margin-top: $header-top-spacing;
-    margin-bottom: $paragraph-spacing;
 }
 
 .post-tags {
@@ -213,7 +246,8 @@ $header-top-spacing: 25px;
             margin-left: 10px;
             border: 1px solid $box-border-color;
             padding: 3px;
-            @include margin-top-bottom(3px);
+            margin-top: 3px;
+            margin-bottom: 3px;
         }
     }
 }
@@ -289,7 +323,8 @@ pre.highlight {
 
 article {
     p {
-        @include p-space();
+        margin-top: $paragraph-spacing;
+        margin-bottom: $paragraph-spacing;
 
         a[target='_blank'] {
             &:after {
@@ -300,17 +335,20 @@ article {
 
     ul {
         margin-left: 30px;
-        @include p-space();
+        margin-top: $paragraph-spacing;
+        margin-bottom: $paragraph-spacing;
     }
 
     h2 {
         font-size: 24px;
-        @include h-space();
+        margin-top: $header-top-spacing;
+        margin-bottom: $paragraph-spacing;
     }
 
     h3 {
         font-size: 21px;
-        @include h-space();
+        margin-top: $header-top-spacing;
+        margin-bottom: $paragraph-spacing;
     }
 }
 

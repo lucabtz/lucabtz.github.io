@@ -12,7 +12,6 @@ $bg-color: light-dark(light.$bg-color, dark.$bg-color);
 $text-color: light-dark(light.$text-color, dark.$text-color);
 $light-text-color: light-dark(light.$light-text-color, dark.$light-text-color);
 $link-color: light-dark(light.$link-color, dark.$link-color);
-$box-border-color: light-dark(light.$box-border-color, dark.$box-border-color);
 $code-bg-color: light-dark(light.$code-bg-color, dark.$code-bg-color);
 $code-border-color: light-dark(light.$code-border-color, dark.$code-border-color);
 $scroller-color: light-dark(light.$scroller-color, dark.$scroller-color);
@@ -218,10 +217,14 @@ footer {
 }
 
 .post-card {
-    border: 1px solid $box-border-color;
     list-style-type: none;
-    padding: 10px;
-    margin-bottom: 30px;
+    margin-top: 5px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid $text-color;
+
+    .post-description {
+        margin-top: 5px;
+    }
 }
 
 .card-list {
@@ -233,25 +236,23 @@ footer {
     flex-direction: row;
     align-items: center;
 
+    div {
+        color: $light-text-color;
+    }
+
     ul {
         display: flex;
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        margin: 0;
 
         li {
             list-style-type: none;
             margin-left: 10px;
-            border: 1px solid $box-border-color;
-            padding: 3px;
-            margin-top: 3px;
-            margin-bottom: 3px;
         }
     }
 }
-
 
 .post-title {
     font-size: 29px;
@@ -282,21 +283,15 @@ footer {
     }
 }
 
-.post-tags {
-    div {
-        color: $light-text-color;
-    }
-}
-
 .post-share {
     ul {
         display: flex;
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
-        padding-top: 10px;
-        padding-bottom: 10px;
         margin-left: 0px;
+        margin-top: 10px;
+        margin-bottom: 0;
         gap: 10px;
 
         li {
@@ -322,6 +317,10 @@ pre.highlight {
 }
 
 article {
+    header {
+        margin-bottom: 25px;
+    }
+
     p {
         margin-top: $paragraph-spacing;
         margin-bottom: $paragraph-spacing;
@@ -359,7 +358,6 @@ article {
     justify-content: space-between;
 
     div {
-        border: 1px solid $box-border-color;
         padding: 10px;
         width: 49%;
         text-align: center;
@@ -444,7 +442,6 @@ a.share-linkedin {
 
     li {
         padding: 10px;
-        border: 1px solid $box-border-color;
         display: flex;
         flex-direction: row;
         align-items: center;

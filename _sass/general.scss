@@ -40,14 +40,23 @@ $scrollbar-color: light-dark(light.$scrollbar-color, dark.$scrollbar-color);
     display: none;
 
     & ~ label::before {
-        content: light-dark($switcher-text-dark, $switcher-text-light);
+        content: $switcher-text-dark;
         color: $link-color;
         text-decoration: underline;
     }
+    
+    &:checked ~ label::before {
+        content: $switcher-text-light;
+    }
 
     @media (prefers-color-scheme: dark) {
+        
         & ~ label::before {
-            content: light-dark($switcher-text-light, $switcher-text-dark);
+            content: $switcher-text-light;
+        }
+        
+        &:checked ~ label::before {
+            content: $switcher-text-dark;
         }
     }
 }

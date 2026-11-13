@@ -1,5 +1,6 @@
 @use 'themes/light.scss';
 @use 'themes/dark.scss';
+@use 'code';
 
 $switcher-text-light: "💡On";
 $switcher-text-dark: "💡Off";
@@ -23,22 +24,15 @@ $scrollbar-color: light-dark(light.$scrollbar-color, dark.$scrollbar-color);
 
 :root:has(#switcher:checked) {
     color-scheme: dark;
-    @import 'code/base16.scss';
-}
-
-@media (prefers-color-scheme: light) {
-    :root:not(:has(#switcher:checked)) { @import 'code/github.scss'; }
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
         color-scheme: dark;
-        @import 'code/base16.scss';
     }
     
     :root:has(#switcher:checked) {
         color-scheme: light;
-        @import 'code/github.scss';
     }
 }
 

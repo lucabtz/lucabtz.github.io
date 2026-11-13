@@ -1,0 +1,116 @@
+@use 'code/github' as light;
+@use 'code/base16' as dark;
+
+$code-bg-color: light-dark(light.$bg, dark.$bg);
+$code-border-color: light-dark(light.$border, dark.$border);
+$code-text-color: light-dark(light.$text, dark.$text);
+
+$comment-color: light-dark(light.$comment, dark.$comment);
+$error-color: light-dark(light.$error, dark.$error);
+$error-bg-color: light-dark(light.$error-bg, dark.$error-bg);
+
+$keyword-color: light-dark(light.$keyword, dark.$keyword);
+$operator-color: light-dark(light.$operator, dark.$operator);
+$type-color: light-dark(light.$type, dark.$type);
+
+$string-color: light-dark(light.$string, dark.$string);
+$regex-color: light-dark(light.$regex, dark.$regex);
+$number-color: light-dark(light.$number, dark.$number);
+
+$name-color: light-dark(light.$name, dark.$name);
+$attribute-color: light-dark(light.$attribute, dark.$attribute);
+$builtin-color: light-dark(light.$builtin, dark.$builtin);
+$function-color: light-dark(light.$function, dark.$function);
+$namespace-color: light-dark(light.$namespace, dark.$namespace);
+$tag-color: light-dark(light.$tag, dark.$tag);
+
+$diff-delete-color: light-dark(light.$diff-delete, dark.$diff-delete);
+$diff-insert-color: light-dark(light.$diff-insert, dark.$diff-insert);
+$diff-text-color: light-dark(light.$diff-text, dark.$diff-text);
+
+$muted-color: light-dark(light.$muted, dark.$muted);
+
+.highlight {
+    color: $code-text-color;
+    background-color: $code-bg-color;
+
+    .c, .ch, .cd, .cm, .cpf, .c1, .cs {
+        color: $comment-color;
+    }
+
+    .err {
+        color: $error-color;
+        background-color: $error-bg-color;
+    }
+
+    .k, .kn, .kp, .kr, .kv {
+        color: $keyword-color;
+    }
+
+    .o, .ow {
+        color: $operator-color;
+    }
+
+    .kc, .kt, .kd {
+        color: $type-color;
+    }
+
+    .s, .sb, .sc, .dl, .sd, .s2,
+    .sh, .sx, .s1 {
+        color: $string-color;
+    }
+
+    .sr {
+        color: $regex-color;
+    }
+
+    .m, .mb, .mf, .mh, .mi, .il, .mo, .mx {
+        color: $number-color;
+    }
+
+    .n {
+        color: $name-color;
+    }
+
+    .na, .nv, .vc, .vg, .vi {
+        color: $attribute-color;
+    }
+
+    .nb {
+        color: $builtin-color;
+    }
+
+    .nf, .ne {
+        color: $function-color;
+    }
+
+    .nc, .nn, .no {
+        color: $namespace-color;
+    }
+
+    .nt {
+        color: $tag-color;
+    }
+
+    .gd {
+        color: $diff-text-color;
+        background-color: $diff-delete-color;
+    }
+
+    .gi {
+        color: $diff-text-color;
+        background-color: $diff-insert-color;
+    }
+
+    .go, .bp {
+        color: $muted-color;
+    }
+}
+
+.highlight pre,
+pre.highlight {
+    background-color: $code-bg-color;
+    color: $code-text-color;
+    border: 1px solid $code-border-color;
+    padding: 10px;
+}

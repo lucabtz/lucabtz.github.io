@@ -1,0 +1,71 @@
+a.share {
+    border-radius: 0.2em;
+    height: 21px;
+    text-decoration: none;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    padding-left: 5px;
+    padding-right: 5px;
+
+    svg {
+        height: 15px;
+        width: 15px;
+        margin-right: 3px;
+    }
+
+    div {
+        font-size: 15px;
+        font-family: Helvetica, Arial, sans-serif;
+    }
+}
+
+a.share-bluesky {
+    background: #1185fe;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+a.share-mastodon {
+    background: #2b90d9;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+a.share-x {
+    background: black;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}
+
+a.share-linkedin {
+    background: #0a66c2;
+
+    svg {
+        fill: white;
+    }
+
+    div {
+        color: white;
+    }
+}

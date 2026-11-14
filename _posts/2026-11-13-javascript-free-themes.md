@@ -63,8 +63,7 @@ $switcher-text-dark: "💡Off";
 ```
 First of all, the logic is duplicated depending on the system's preferred theme, using the media query for `prefers-color-scheme`.
 This is needed because I want the default theme applied to be the one the site loads first. By clicking the checkbox it is then
-possible to switch to the other theme. The CSS `content` property is used to have the checkbox change depending on the state
-using the `light-dark` function. Colors are switched using the same function.
+possible to switch to the other theme. The CSS `content` property is used to have the checkbox change depending on the state. Colors are switched using the `light-dark` function.
 
 ## Conclusion
 This was just a short post to describe this technique. It is nothing novel, but I believed it was worth sharing.

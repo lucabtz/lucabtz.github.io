@@ -79,6 +79,10 @@ $scrollbar-color: light-dark(light.$scrollbar-color, dark.$scrollbar-color);
     padding: 0;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 body {
     font-size: 18px;
     font-family: "IBM Plex Serif", serif;

@@ -45,6 +45,7 @@ $muted-color: light-dark(light.$muted, dark.$muted);
 
     .k, .kn, .kp, .kr, .kv {
         color: $keyword-color;
+        font-weight: 500;
     }
 
     .o, .ow {
